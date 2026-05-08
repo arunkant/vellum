@@ -10,8 +10,27 @@ type ScreenshotEntry = {
 };
 
 const emptyState = document.getElementById('empty-state')!;
+const noMatchesState = document.getElementById('no-matches-state')!;
 const grid = document.getElementById('screenshots-grid')!;
 const statusText = document.getElementById('status-text')!;
+
+// --- Search ---
+const searchInput = document.getElementById('search-input') as HTMLInputElement;
+const searchClearBtn = document.getElementById('search-clear-btn')!;
+let allScreenshots: ScreenshotEntry[] = [];
+let searchQuery = '';
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+function filterScreenshots(query: string): ScreenshotEntry[] {
+  if (!query.trim()) return allScreenshots;
+  const q = query.toLowerCase().trim();
+  return allScreenshots.filter((s) => {
+    if (s.name.toLowerCase().includes(q)) return true;
+    if (s.aiText && s.aiText.toLowerCase().includes(q)) return true;
+    if (s.aiDescription && s.aiDescription.toLowerCase().includes(q)) return true;
+    return false;
+  });
+}
 
 // --- Settings panel ---
 const settingsOverlay = document.getElementById('settings-overlay')!;
@@ -50,13 +69,26 @@ function escapeHTML(str: string): string {
 }
 
 function renderScreenshots(screenshots: ScreenshotEntry[]) {
-  if (screenshots.length === 0) {
+  const isSearching = searchQuery.trim().length > 0;
+
+  // No screenshots at all
+  if (allScreenshots.length === 0) {
     emptyState.style.display = 'flex';
+    noMatchesState.style.display = 'none';
+    grid.style.display = 'none';
+    return;
+  }
+
+  // Search returned no results
+  if (isSearching && screenshots.length === 0) {
+    emptyState.style.display = 'none';
+    noMatchesState.style.display = 'flex';
     grid.style.display = 'none';
     return;
   }
 
   emptyState.style.display = 'none';
+  noMatchesState.style.display = 'none';
   grid.style.display = 'grid';
   grid.innerHTML = '';
 
@@ -161,8 +193,8 @@ function setStatus(msg: string) {
 
 async function refreshScreenshots() {
   try {
-    const screenshots = await window.vellum.getScreenshots();
-    renderScreenshots(screenshots);
+    allScreenshots = await window.vellum.getScreenshots();
+    renderScreenshots(filterScreenshots(searchQuery));
   } catch (err) {
     console.error('Failed to load screenshots:', err);
   }
@@ -213,10 +245,17 @@ saveSettingsBtn.addEventListener('click', async () => {
   setTimeout(() => { settingsStatus.textContent = ''; }, 2000);
 });
 
-// Close settings with Escape
+// Close settings with Escape; also clear search if search is focused
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && settingsOverlay.style.display === 'flex') {
-    settingsOverlay.style.display = 'none';
+  if (e.key === 'Escape') {
+    if (settingsOverlay.style.display === 'flex') {
+      settingsOverlay.style.display = 'none';
+    } else if (document.activeElement === searchInput && searchQuery) {
+      searchInput.value = '';
+      searchQuery = '';
+      searchClearBtn.style.display = 'none';
+      renderScreenshots(filterScreenshots(''));
+    }
   }
 });
 
@@ -236,8 +275,8 @@ async function init() {
     if (action === 'open' && filepath) {
       await window.vellum.openScreenshot(filepath);
     } else if (action === 'delete' && filepath) {
-      const updated = await window.vellum.deleteScreenshot(filepath);
-      renderScreenshots(updated);
+      allScreenshots = await window.vellum.deleteScreenshot(filepath);
+      renderScreenshots(filterScreenshots(searchQuery));
       setStatus('🗑️ Screenshot deleted');
     } else if (action === 'view-ai' && filename) {
       showAIDetail(filename);
@@ -246,7 +285,8 @@ async function init() {
 
   // Listen for new screenshots
   window.vellum.onScreenshotAdded((screenshots) => {
-    renderScreenshots(screenshots);
+    allScreenshots = screenshots;
+    renderScreenshots(filterScreenshots(searchQuery));
     setStatus('📸 Screenshot captured!');
   });
 
@@ -266,8 +306,8 @@ async function init() {
   // Full-screen capture button
   document.getElementById('full-capture-btn')!.addEventListener('click', async () => {
     setStatus('🖥️ Capturing full screen...');
-    const screenshots = await window.vellum.captureFullScreen();
-    renderScreenshots(screenshots);
+    allScreenshots = await window.vellum.captureFullScreen();
+    renderScreenshots(filterScreenshots(searchQuery));
     setStatus('📸 Full screen captured!');
   });
 
@@ -276,8 +316,36 @@ async function init() {
     window.vellum.showScreenshotsFolder();
   });
 
+  // Search input with debounce
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value;
+    searchClearBtn.style.display = searchQuery ? 'block' : 'none';
+
+    if (searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      renderScreenshots(filterScreenshots(searchQuery));
+    }, 200);
+  });
+
+  // Clear search
+  searchClearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = '';
+    searchClearBtn.style.display = 'none';
+    renderScreenshots(filterScreenshots(''));
+    searchInput.focus();
+  });
+
   // In-window keyboard shortcuts
   document.addEventListener('keydown', async (e) => {
+    // Cmd+F / Ctrl+F → focus search
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
       e.preventDefault();
       setStatus('✂️ Drag to select a region on screen...');
@@ -285,8 +353,8 @@ async function init() {
     } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '2') {
       e.preventDefault();
       setStatus('🖥️ Capturing full screen...');
-      const screenshots = await window.vellum.captureFullScreen();
-      renderScreenshots(screenshots);
+      allScreenshots = await window.vellum.captureFullScreen();
+      renderScreenshots(filterScreenshots(searchQuery));
       setStatus('📸 Full screen captured!');
     }
   });

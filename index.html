@@ -33,6 +33,18 @@
         </span>
       </div>
 
+      <div class="search-bar" id="search-bar">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Search screenshots — text, descriptions, filenames…"
+          autocomplete="off"
+        />
+        <button id="search-clear-btn" class="search-clear" title="Clear search" style="display: none;">✕</button>
+      </div>
+
       <main id="screenshots-container">
         <div id="empty-state" class="empty-state">
           <div class="empty-icon">📸</div>
@@ -42,6 +54,11 @@
             or <kbd>⌘⇧2</kbd> for a full-screen capture.<br/>
             <small>The hotkeys work even when this window is hidden.</small>
           </p>
+        </div>
+        <div id="no-matches-state" class="empty-state" style="display: none;">
+          <div class="empty-icon">🔍</div>
+          <h2>No matches found</h2>
+          <p>No screenshots match your search. Try different keywords.</p>
         </div>
         <div id="screenshots-grid" class="screenshots-grid" style="display: none;"></div>
       </main>
