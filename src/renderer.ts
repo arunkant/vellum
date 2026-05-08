@@ -45,7 +45,7 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
     card.innerHTML = `
       <div class="card-preview">
         <img
-          src="file://${shot.path}"
+          src="vellum-file://${encodeURI(shot.path)}"
           alt="${shot.name}"
           loading="lazy"
           onerror="this.parentElement.innerHTML='<div class=\\'image-error\\'>🖼️<br/>Preview unavailable</div>'"

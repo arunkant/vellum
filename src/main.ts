@@ -9,6 +9,8 @@ import {
   nativeImage,
   ipcMain,
   shell,
+  protocol,
+  net,
 } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -396,6 +398,12 @@ function setupIPC() {
 
 // App lifecycle
 app.whenReady().then(() => {
+  // Register custom protocol to serve screenshots to the renderer
+  // (file:// is blocked when contextIsolation is enabled)
+  protocol.handle('vellum-file', (request) => {
+    const filePath = decodeURIComponent(request.url.replace('vellum-file://', ''));
+    return net.fetch(`file://${filePath}`);
+  });
   setupIPC();
   createWindow();
   createTray();
