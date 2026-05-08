@@ -190,6 +190,67 @@ Format your response exactly like this:
 }
 
 /**
+ * Chat with AI about a specific screenshot.
+ */
+export async function chatAboutScreenshot(
+  filepath: string,
+  userMessage: string,
+): Promise<string | null> {
+  const config = getConfig();
+
+  if (!config.openrouterApiKey) {
+    return '⚠️ No OpenRouter API key configured. Open Vellum settings to add your key.';
+  }
+
+  try {
+    const imageDataUrl = imageToBase64(filepath);
+
+    const response = await net.fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.openrouterApiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'vellum-app',
+        'X-Title': 'Vellum AI Helper',
+      },
+      body: JSON.stringify({
+        model: config.aiModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `You are a helpful AI assistant. The user has captured a screenshot and has a question about it. Answer concisely and helpfully.\n\nUser question: ${userMessage}`,
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageDataUrl,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`OpenRouter chat error ${response.status}: ${errorBody}`);
+      return `❌ API error (${response.status}). Check your API key in settings.`;
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || 'No response from AI.';
+  } catch (err) {
+    console.error('Chat failed:', err);
+    return '❌ Failed to reach OpenRouter. Check your connection.';
+  }
+}
+
+/**
  * Get AI result for a screenshot (from cache only — no API call)
  */
 export function getAIResult(filename: string): AICacheEntry | null {

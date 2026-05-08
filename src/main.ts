@@ -16,7 +16,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { getOverlayHTML } from './overlay-content';
-import { analyzeScreenshot, getConfig, saveConfig, getAIResult, clearAICache, type AIResult } from './ai-service';
+import { analyzeScreenshot, chatAboutScreenshot, getConfig, saveConfig, getAIResult, clearAICache, type AIResult } from './ai-service';
+import { getChatWindowHTML } from './chat-window-content';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -25,6 +26,7 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
+let chatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
@@ -99,6 +101,11 @@ function getScreenshots(): Array<{
 
 /** After a screenshot is saved, run AI analysis and notify the renderer */
 async function onScreenshotCaptured(filepath: string) {
+  const filename = path.basename(filepath);
+
+  // Open the floating chat window immediately
+  openChatWindow(filepath, filename);
+
   notifyScreenshotsUpdated();
 
   // Run AI analysis in background
@@ -108,7 +115,6 @@ async function onScreenshotCaptured(filepath: string) {
   try {
     const result = await analyzeScreenshot(filepath);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
-      const filename = path.basename(filepath);
       mainWindow.webContents.send('ai-result-ready', {
         filename,
         text: result.extractedText,
@@ -247,6 +253,56 @@ function closeOverlay() {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.destroy();
     overlayWindow = null;
+  }
+}
+
+/** Open the floating chat window for a captured screenshot */
+function openChatWindow(filepath: string, filename: string) {
+  // Close existing chat window
+  if (chatWindow && !chatWindow.isDestroyed()) {
+    chatWindow.destroy();
+    chatWindow = null;
+  }
+
+  const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
+  const winW = 420;
+  const winH = 520;
+  const winX = Math.round((sw - winW) / 2);
+  const winY = Math.round((sh - winH) / 2);
+
+  chatWindow = new BrowserWindow({
+    x: winX,
+    y: winY,
+    width: winW,
+    height: winH,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    resizable: true,
+    hasShadow: true,
+    focusable: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      devTools: false,
+    },
+    title: 'Vellum Chat',
+  });
+
+  chatWindow.setAlwaysOnTop(true, 'floating');
+
+  const html = getChatWindowHTML(filepath, filename);
+  chatWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+  chatWindow.on('closed', () => {
+    chatWindow = null;
+  });
+}
+
+function closeChatWindow() {
+  if (chatWindow && !chatWindow.isDestroyed()) {
+    chatWindow.destroy();
+    chatWindow = null;
   }
 }
 
@@ -457,6 +513,15 @@ function setupIPC() {
   ipcMain.on('capture-cancelled', () => {
     closeOverlay();
   });
+
+  // Chat window IPC
+  ipcMain.handle('chat-message', async (_event, filepath: string, message: string) => {
+    return await chatAboutScreenshot(filepath, message);
+  });
+
+  ipcMain.on('chat-window-close', () => {
+    closeChatWindow();
+  });
 }
 
 // App lifecycle
@@ -491,5 +556,6 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
+  closeChatWindow();
   globalShortcut.unregisterAll();
 });
