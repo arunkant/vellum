@@ -127,7 +127,7 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
       </div>
       ${aiSection}
       <div class="card-actions">
-        ${shot.hasChat ? '<button class="btn-icon" title="Open chat" data-action="open-chat" data-filename="' + shot.name + '" data-path="' + shot.path + '">💬</button>' : ''}
+        <button class="btn-icon" title="Chat about this screenshot" data-action="open-chat" data-filename="${shot.name}" data-path="${shot.path}">💬</button>
         ${hasAI ? '<button class="btn-icon" title="View AI details" data-action="view-ai" data-filename="' + shot.name + '">🔍</button>' : ''}
         <button class="btn-icon" title="Open" data-action="open" data-path="${shot.path}">👁️</button>
         <button class="btn-icon" title="Delete" data-action="delete" data-path="${shot.path}">🗑️</button>
