@@ -13,7 +13,10 @@
         </div>
         <div class="header-right">
           <button id="capture-btn" class="btn btn-primary">
-            <span class="icon">📷</span> Capture (⌘⇧1)
+            <span class="icon">✂️</span> Capture Region (⌘⇧1)
+          </button>
+          <button id="full-capture-btn" class="btn btn-secondary">
+            <span class="icon">🖥️</span> Full Screen (⌘⇧2)
           </button>
           <button id="folder-btn" class="btn btn-secondary">
             <span class="icon">📁</span> Open Folder
@@ -22,14 +25,20 @@
       </header>
 
       <div class="status-bar">
-        <span id="status-text">🟢 Ready — Press Cmd+Shift+1 to capture from anywhere</span>
+        <span id="status-text">
+          🟢 Ready — <kbd>⌘⇧1</kbd> drag-to-select region &nbsp;|&nbsp; <kbd>⌘⇧2</kbd> full screen
+        </span>
       </div>
 
       <main id="screenshots-container">
         <div id="empty-state" class="empty-state">
           <div class="empty-icon">📸</div>
           <h2>No screenshots yet</h2>
-          <p>Press <kbd>Cmd+Shift+1</kbd> (or <kbd>Ctrl+Shift+1</kbd> on Windows/Linux) to capture your screen. The hotkey works even when this window is hidden.</p>
+          <p>
+            Press <kbd>⌘⇧1</kbd> to drag-select a region,<br/>
+            or <kbd>⌘⇧2</kbd> for a full-screen capture.<br/>
+            <small>The hotkeys work even when this window is hidden.</small>
+          </p>
         </div>
         <div id="screenshots-grid" class="screenshots-grid" style="display: none;"></div>
       </main>

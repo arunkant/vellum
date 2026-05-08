@@ -94,7 +94,7 @@ function setStatus(msg: string) {
   statusText.textContent = msg;
   // Auto-reset after 3 seconds
   setTimeout(() => {
-    statusText.textContent = '🟢 Ready — Press Cmd+Shift+1 to capture from anywhere';
+    statusText.textContent = '🟢 Ready — ⌘⇧1 drag region | ⌘⇧2 full screen';
   }, 3000);
 }
 
@@ -117,12 +117,18 @@ async function init() {
     setStatus('📸 Screenshot captured!');
   });
 
-  // Capture button
+  // Region capture button
   document.getElementById('capture-btn')!.addEventListener('click', async () => {
-    setStatus('📷 Capturing...');
-    const screenshots = await window.vellum.captureScreenshot();
+    setStatus('✂️ Drag to select a region on screen...');
+    await window.vellum.captureRegion();
+  });
+
+  // Full-screen capture button
+  document.getElementById('full-capture-btn')!.addEventListener('click', async () => {
+    setStatus('🖥️ Capturing full screen...');
+    const screenshots = await window.vellum.captureFullScreen();
     renderScreenshots(screenshots);
-    setStatus('📸 Screenshot captured!');
+    setStatus('📸 Full screen captured!');
   });
 
   // Open folder button
@@ -130,12 +136,18 @@ async function init() {
     window.vellum.showScreenshotsFolder();
   });
 
-  // Keyboard shortcut for capture within the window
-  document.addEventListener('keydown', (e) => {
+  // Keyboard shortcuts within the window
+  document.addEventListener('keydown', async (e) => {
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
       e.preventDefault();
-      window.vellum.captureScreenshot().then(renderScreenshots);
-      setStatus('📸 Screenshot captured!');
+      setStatus('✂️ Drag to select a region on screen...');
+      await window.vellum.captureRegion();
+    } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '2') {
+      e.preventDefault();
+      setStatus('🖥️ Capturing full screen...');
+      const screenshots = await window.vellum.captureFullScreen();
+      renderScreenshots(screenshots);
+      setStatus('📸 Full screen captured!');
     }
   });
 }

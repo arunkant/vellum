@@ -10,8 +10,11 @@ const api = {
   getScreenshots: (): Promise<ScreenshotEntry[]> =>
     ipcRenderer.invoke('get-screenshots'),
 
-  captureScreenshot: (): Promise<ScreenshotEntry[]> =>
-    ipcRenderer.invoke('capture-screenshot'),
+  captureRegion: (): Promise<ScreenshotEntry[]> =>
+    ipcRenderer.invoke('capture-region'),
+
+  captureFullScreen: (): Promise<ScreenshotEntry[]> =>
+    ipcRenderer.invoke('capture-fullscreen'),
 
   openScreenshot: (filepath: string): Promise<boolean> =>
     ipcRenderer.invoke('open-screenshot', filepath),

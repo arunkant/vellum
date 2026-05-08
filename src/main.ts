@@ -8,12 +8,12 @@ import {
   screen,
   nativeImage,
   ipcMain,
-  dialog,
   shell,
 } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
+import { getOverlayHTML } from './overlay-content';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -21,6 +21,7 @@ if (started) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let overlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
@@ -34,7 +35,6 @@ if (!fs.existsSync(screenshotsDir)) {
 
 // Create a simple tray icon programmatically (16x16 colored circle)
 function createTrayIcon(): nativeImage {
-  // Create a 16x16 image with a simple colored icon
   const size = 16;
   const buffer = Buffer.alloc(size * size * 4);
 
@@ -46,11 +46,10 @@ function createTrayIcon(): nativeImage {
       const dist = Math.sqrt(cx * cx + cy * cy);
 
       if (dist <= size / 2 - 1) {
-        // Purple circle with slight gradient
         const alpha = dist < size / 2 - 3 ? 255 : 128;
-        buffer[idx] = 139;     // R
-        buffer[idx + 1] = 92;  // G
-        buffer[idx + 2] = 246; // B
+        buffer[idx] = 139;       // R
+        buffer[idx + 1] = 92;    // G
+        buffer[idx + 2] = 246;   // B
         buffer[idx + 3] = alpha; // A
       } else {
         buffer[idx] = 0;
@@ -61,10 +60,7 @@ function createTrayIcon(): nativeImage {
     }
   }
 
-  return nativeImage.createFromBuffer(buffer, {
-    width: size,
-    height: size,
-  });
+  return nativeImage.createFromBuffer(buffer, { width: size, height: size });
 }
 
 function getScreenshots(): Array<{ name: string; path: string; time: number }> {
@@ -75,24 +71,155 @@ function getScreenshots(): Array<{ name: string; path: string; time: number }> {
       .map((f) => {
         const fullPath = path.join(screenshotsDir, f);
         const stats = fs.statSync(fullPath);
-        return {
-          name: f,
-          path: fullPath,
-          time: stats.mtimeMs,
-        };
+        return { name: f, path: fullPath, time: stats.mtimeMs };
       })
-      .sort((a, b) => b.time - a.time); // newest first
+      .sort((a, b) => b.time - a.time);
   } catch {
     return [];
   }
 }
 
-async function captureScreenshot(): Promise<string | null> {
+/** Get the total bounds covering all displays */
+function getTotalBounds(): { x: number; y: number; width: number; height: number } {
+  const displays = screen.getAllDisplays();
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+
+  for (const d of displays) {
+    const { x, y, width, height } = d.bounds;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + width);
+    maxY = Math.max(maxY, y + height);
+  }
+
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/** Capture a specific region of the screen and save to file */
+async function captureRegion(
+  region: { x: number; y: number; width: number; height: number },
+): Promise<string | null> {
+  try {
+    // Use the primary display's thumbnail and crop
+    const { width: displayW, height: displayH } = screen.getPrimaryDisplay().bounds;
+    const totalBounds = getTotalBounds();
+
+    // Request thumbnail at full resolution of the total display area
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: totalBounds.width, height: totalBounds.height },
+    });
+
+    if (sources.length === 0) return null;
+
+    const fullImage = sources[0].thumbnail;
+
+    // If the source thumbnail doesn't cover the region exactly, try to find the right display
+    // For simplicity, crop from the full image relative to totalBounds
+    const cropX = region.x - totalBounds.x;
+    const cropY = region.y - totalBounds.y;
+
+    // Ensure crop is within bounds
+    const cx = Math.max(0, cropX);
+    const cy = Math.max(0, cropY);
+    const cw = Math.min(region.width, fullImage.getSize().width - cx);
+    const ch = Math.min(region.height, fullImage.getSize().height - cy);
+
+    if (cw <= 0 || ch <= 0) return null;
+
+    const cropped = fullImage.crop({ x: cx, y: cy, width: cw, height: ch });
+
+    // If the cropped image is smaller than expected (desktopCapturer may scale),
+    // adjust by taking a second capture at native resolution
+    const croppedSize = cropped.getSize();
+    const scaleX = displayW / totalBounds.width;
+    const scaleY = displayH / totalBounds.height;
+
+    // Save to file
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `screenshot-${timestamp}.png`;
+    const filepath = path.join(screenshotsDir, filename);
+
+    const pngBuffer = cropped.toPNG();
+    fs.writeFileSync(filepath, pngBuffer);
+
+    return filepath;
+  } catch (err) {
+    console.error('Region capture failed:', err);
+    return null;
+  }
+}
+
+/** Open the transparent overlay for drag-to-select region capture */
+function openRegionCapture() {
+  // Prevent multiple overlays
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.focus();
+    return;
+  }
+
+  const totalBounds = getTotalBounds();
+
+  overlayWindow = new BrowserWindow({
+    x: totalBounds.x,
+    y: totalBounds.y,
+    width: totalBounds.width,
+    height: totalBounds.height,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    hasShadow: false,
+    fullscreenable: false,
+    focusable: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      devTools: false,
+    },
+  });
+
+  // Prevent the overlay from being captured by desktopCapturer
+  overlayWindow.setVisibleOnAllWorkspaces(true);
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+
+  // Load the overlay HTML as a data URL
+  const html = getOverlayHTML(totalBounds);
+  overlayWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+  // Prevent window from being closed by Cmd+W / Alt+F4
+  overlayWindow.on('close', (e) => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      e.preventDefault();
+    }
+  });
+
+  overlayWindow.on('closed', () => {
+    overlayWindow = null;
+  });
+}
+
+function closeOverlay() {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.destroy();
+    overlayWindow = null;
+  }
+}
+
+function notifyScreenshotsUpdated() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('screenshot-added', getScreenshots());
+  }
+}
+
+/** Full-screen capture (fallback / quick capture) */
+async function captureFullScreen(): Promise<string | null> {
   try {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.bounds;
 
-    // Capture all screens
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width, height },
@@ -100,22 +227,17 @@ async function captureScreenshot(): Promise<string | null> {
 
     if (sources.length === 0) return null;
 
-    // Use the first screen source or find the primary
-    const source = sources[0];
-    const image = source.thumbnail;
-
-    // Save to file
+    const image = sources[0].thumbnail;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `screenshot-${timestamp}.png`;
     const filepath = path.join(screenshotsDir, filename);
 
-    // Convert to PNG and save
     const pngBuffer = image.toPNG();
     fs.writeFileSync(filepath, pngBuffer);
 
     return filepath;
   } catch (err) {
-    console.error('Screenshot capture failed:', err);
+    console.error('Full-screen capture failed:', err);
     return null;
   }
 }
@@ -124,7 +246,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 650,
-    show: false, // Start hidden
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -133,7 +255,6 @@ function createWindow() {
     title: 'Vellum - AI Helper',
   });
 
-  // Load the index.html
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -142,7 +263,6 @@ function createWindow() {
     );
   }
 
-  // Hide window instead of closing
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -165,13 +285,21 @@ function createTray() {
       },
     },
     {
-      label: 'Capture Screenshot',
+      label: 'Capture Region (Drag)',
       accelerator: 'CmdOrCtrl+Shift+1',
+      click: () => {
+        // Hide the main window so it's not in the way
+        mainWindow?.hide();
+        // Small delay to let the window hide before overlay appears
+        setTimeout(() => openRegionCapture(), 150);
+      },
+    },
+    {
+      label: 'Capture Full Screen',
+      accelerator: 'CmdOrCtrl+Shift+2',
       click: async () => {
-        const filepath = await captureScreenshot();
-        if (filepath && mainWindow) {
-          mainWindow.webContents.send('screenshot-added', getScreenshots());
-        }
+        const filepath = await captureFullScreen();
+        if (filepath) notifyScreenshotsUpdated();
       },
     },
     { type: 'separator' },
@@ -186,33 +314,33 @@ function createTray() {
 
   tray.setContextMenu(contextMenu);
 
-  // Double-click on tray icon shows the window
   tray.on('double-click', () => {
     mainWindow?.show();
     mainWindow?.focus();
   });
 }
 
-// Register global shortcuts
 function registerShortcuts() {
-  const registered = globalShortcut.register('CmdOrCtrl+Shift+1', async () => {
-    console.log('Global shortcut triggered: CmdOrCtrl+Shift+1');
-    const filepath = await captureScreenshot();
-    if (filepath && mainWindow) {
-      mainWindow.webContents.send('screenshot-added', getScreenshots());
-    }
+  // Region capture
+  const ok1 = globalShortcut.register('CmdOrCtrl+Shift+1', () => {
+    console.log('Global shortcut: CmdOrCtrl+Shift+1 (region capture)');
+    mainWindow?.hide();
+    setTimeout(() => openRegionCapture(), 150);
   });
 
-  if (!registered) {
-    console.error('Failed to register global shortcut');
-  }
+  // Full-screen capture
+  const ok2 = globalShortcut.register('CmdOrCtrl+Shift+2', async () => {
+    console.log('Global shortcut: CmdOrCtrl+Shift+2 (full screen)');
+    const filepath = await captureFullScreen();
+    if (filepath) notifyScreenshotsUpdated();
+  });
+
+  if (!ok1) console.error('Failed to register CmdOrCtrl+Shift+1');
+  if (!ok2) console.error('Failed to register CmdOrCtrl+Shift+2');
 }
 
-// IPC Handlers
 function setupIPC() {
-  ipcMain.handle('get-screenshots', () => {
-    return getScreenshots();
-  });
+  ipcMain.handle('get-screenshots', () => getScreenshots());
 
   ipcMain.handle('open-screenshot', async (_event, filepath: string) => {
     try {
@@ -225,22 +353,44 @@ function setupIPC() {
 
   ipcMain.handle('delete-screenshot', async (_event, filepath: string) => {
     try {
-      if (fs.existsSync(filepath)) {
-        fs.unlinkSync(filepath);
-      }
-      return getScreenshots();
-    } catch {
-      return getScreenshots();
-    }
+      if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    } catch { /* ignore */ }
+    return getScreenshots();
   });
 
-  ipcMain.handle('capture-screenshot', async () => {
-    const filepath = await captureScreenshot();
-    return filepath ? getScreenshots() : getScreenshots();
+  // Trigger region capture from renderer
+  ipcMain.handle('capture-region', async () => {
+    mainWindow?.hide();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    openRegionCapture();
+    return getScreenshots();
+  });
+
+  // Trigger full-screen capture from renderer
+  ipcMain.handle('capture-fullscreen', async () => {
+    const filepath = await captureFullScreen();
+    if (filepath) notifyScreenshotsUpdated();
+    return getScreenshots();
   });
 
   ipcMain.handle('show-screenshots-folder', async () => {
     await shell.openPath(screenshotsDir);
+  });
+
+  // Overlay IPC: region selected
+  ipcMain.on('capture-region-selected', async (event, region: { x: number; y: number; width: number; height: number }) => {
+    closeOverlay();
+
+    // Small delay to ensure overlay is gone before capturing
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const filepath = await captureRegion(region);
+    if (filepath) notifyScreenshotsUpdated();
+  });
+
+  // Overlay IPC: cancelled
+  ipcMain.on('capture-cancelled', () => {
+    closeOverlay();
   });
 }
 
@@ -251,7 +401,6 @@ app.whenReady().then(() => {
   createTray();
   registerShortcuts();
 
-  // On macOS, show window when dock icon is clicked
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -263,9 +412,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('before-quit', () => {

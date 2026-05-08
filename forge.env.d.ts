@@ -3,7 +3,8 @@
 // Declare the vellum API exposed via preload
 interface VellumAPI {
   getScreenshots: () => Promise<Array<{ name: string; path: string; time: number }>>;
-  captureScreenshot: () => Promise<Array<{ name: string; path: string; time: number }>>;
+  captureRegion: () => Promise<Array<{ name: string; path: string; time: number }>>;
+  captureFullScreen: () => Promise<Array<{ name: string; path: string; time: number }>>;
   openScreenshot: (filepath: string) => Promise<boolean>;
   deleteScreenshot: (filepath: string) => Promise<Array<{ name: string; path: string; time: number }>>;
   showScreenshotsFolder: () => Promise<void>;
