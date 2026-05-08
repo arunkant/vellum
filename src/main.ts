@@ -16,6 +16,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { getOverlayHTML } from './overlay-content';
+import { analyzeScreenshot, getConfig, saveConfig, getAIResult, clearAICache, type AIResult } from './ai-service';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -65,7 +66,14 @@ function createTrayIcon(): nativeImage {
   return nativeImage.createFromBuffer(buffer, { width: size, height: size });
 }
 
-function getScreenshots(): Array<{ name: string; path: string; time: number }> {
+function getScreenshots(): Array<{
+  name: string;
+  path: string;
+  time: number;
+  aiText: string | null;
+  aiDescription: string | null;
+  aiModel: string | null;
+}> {
   try {
     const files = fs.readdirSync(screenshotsDir);
     return files
@@ -73,11 +81,43 @@ function getScreenshots(): Array<{ name: string; path: string; time: number }> {
       .map((f) => {
         const fullPath = path.join(screenshotsDir, f);
         const stats = fs.statSync(fullPath);
-        return { name: f, path: fullPath, time: stats.mtimeMs };
+        const ai = getAIResult(f);
+        return {
+          name: f,
+          path: fullPath,
+          time: stats.mtimeMs,
+          aiText: ai?.extractedText || null,
+          aiDescription: ai?.description || null,
+          aiModel: ai?.model || null,
+        };
       })
       .sort((a, b) => b.time - a.time);
   } catch {
     return [];
+  }
+}
+
+/** After a screenshot is saved, run AI analysis and notify the renderer */
+async function onScreenshotCaptured(filepath: string) {
+  notifyScreenshotsUpdated();
+
+  // Run AI analysis in background
+  const config = getConfig();
+  if (!config.openrouterApiKey) return;
+
+  try {
+    const result = await analyzeScreenshot(filepath);
+    if (result && mainWindow && !mainWindow.isDestroyed()) {
+      const filename = path.basename(filepath);
+      mainWindow.webContents.send('ai-result-ready', {
+        filename,
+        text: result.extractedText,
+        description: result.description,
+        model: result.model,
+      });
+    }
+  } catch (err) {
+    console.error('Background AI analysis failed:', err);
   }
 }
 
@@ -301,7 +341,7 @@ function createTray() {
       accelerator: 'CmdOrCtrl+Shift+2',
       click: async () => {
         const filepath = await captureFullScreen();
-        if (filepath) notifyScreenshotsUpdated();
+        if (filepath) onScreenshotCaptured(filepath);
       },
     },
     { type: 'separator' },
@@ -334,7 +374,7 @@ function registerShortcuts() {
   const ok2 = globalShortcut.register('CmdOrCtrl+Shift+2', async () => {
     console.log('Global shortcut: CmdOrCtrl+Shift+2 (full screen)');
     const filepath = await captureFullScreen();
-    if (filepath) notifyScreenshotsUpdated();
+    if (filepath) onScreenshotCaptured(filepath);
   });
 
   if (!ok1) console.error('Failed to register CmdOrCtrl+Shift+1');
@@ -371,12 +411,35 @@ function setupIPC() {
   // Trigger full-screen capture from renderer
   ipcMain.handle('capture-fullscreen', async () => {
     const filepath = await captureFullScreen();
-    if (filepath) notifyScreenshotsUpdated();
+    if (filepath) onScreenshotCaptured(filepath);
     return getScreenshots();
   });
 
   ipcMain.handle('show-screenshots-folder', async () => {
     await shell.openPath(screenshotsDir);
+  });
+
+  // Settings / Config
+  ipcMain.handle('get-config', () => getConfig());
+
+  ipcMain.handle('save-config', (_event, config: Partial<{ openrouterApiKey: string; aiModel: string }>) => {
+    return saveConfig(config);
+  });
+
+  // AI results for a specific screenshot
+  ipcMain.handle('get-ai-result', (_event, filename: string) => {
+    return getAIResult(filename);
+  });
+
+  // Clear AI cache
+  ipcMain.handle('clear-ai-cache', () => {
+    clearAICache();
+    return true;
+  });
+
+  // Open URL in default browser
+  ipcMain.handle('open-external', async (_event, url: string) => {
+    await shell.openExternal(url);
   });
 
   // Overlay IPC: region selected
@@ -387,7 +450,7 @@ function setupIPC() {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const filepath = await captureRegion(region);
-    if (filepath) notifyScreenshotsUpdated();
+    if (filepath) onScreenshotCaptured(filepath);
   });
 
   // Overlay IPC: cancelled

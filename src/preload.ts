@@ -4,6 +4,20 @@ export interface ScreenshotEntry {
   name: string;
   path: string;
   time: number;
+  aiText: string | null;
+  aiDescription: string | null;
+  aiModel: string | null;
+}
+
+export interface AIResult {
+  extractedText: string;
+  description: string;
+  model: string;
+}
+
+export interface AppConfig {
+  openrouterApiKey: string;
+  aiModel: string;
 }
 
 const api = {
@@ -25,13 +39,43 @@ const api = {
   showScreenshotsFolder: (): Promise<void> =>
     ipcRenderer.invoke('show-screenshots-folder'),
 
+  // Settings
+  getConfig: (): Promise<AppConfig> =>
+    ipcRenderer.invoke('get-config'),
+
+  saveConfig: (config: Partial<AppConfig>): Promise<AppConfig> =>
+    ipcRenderer.invoke('save-config', config),
+
+  // AI
+  getAIResult: (filename: string): Promise<AIResult | null> =>
+    ipcRenderer.invoke('get-ai-result', filename),
+
+  clearAICache: (): Promise<boolean> =>
+    ipcRenderer.invoke('clear-ai-cache'),
+
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
+
+  // Events
   onScreenshotAdded: (callback: (screenshots: ScreenshotEntry[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, screenshots: ScreenshotEntry[]) =>
       callback(screenshots);
     ipcRenderer.on('screenshot-added', handler);
-    // Return cleanup function
     return () => {
       ipcRenderer.removeListener('screenshot-added', handler);
+    };
+  },
+
+  onAIResultReady: (
+    callback: (data: { filename: string; text: string; description: string; model: string }) => void,
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { filename: string; text: string; description: string; model: string },
+    ) => callback(data);
+    ipcRenderer.on('ai-result-ready', handler);
+    return () => {
+      ipcRenderer.removeListener('ai-result-ready', handler);
     };
   },
 };

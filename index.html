@@ -9,7 +9,7 @@
       <header>
         <div class="header-left">
           <h1>📸 Vellum</h1>
-          <span class="subtitle">AI Helper — Screenshot Capture</span>
+          <span class="subtitle">AI Helper — Screenshot Capture + Analysis</span>
         </div>
         <div class="header-right">
           <button id="capture-btn" class="btn btn-primary">
@@ -20,6 +20,9 @@
           </button>
           <button id="folder-btn" class="btn btn-secondary">
             <span class="icon">📁</span> Open Folder
+          </button>
+          <button id="settings-btn" class="btn btn-secondary" title="Settings">
+            <span class="icon">⚙️</span>
           </button>
         </div>
       </header>
@@ -43,6 +46,45 @@
         <div id="screenshots-grid" class="screenshots-grid" style="display: none;"></div>
       </main>
     </div>
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay" class="settings-overlay">
+      <div class="settings-panel">
+        <div class="settings-header">
+          <h2>⚙️ Settings</h2>
+          <button id="close-settings-btn" class="btn-icon" title="Close">✕</button>
+        </div>
+        <div class="settings-body">
+          <div id="settings-hint" class="settings-hint">
+            💡 <strong>Add your OpenRouter API key</strong> to enable AI analysis of screenshots.<br/>
+            Get one at <a href="#" id="openrouter-link">openrouter.ai/keys</a>
+          </div>
+          <div class="settings-field">
+            <label for="api-key-input">OpenRouter API Key</label>
+            <input
+              type="password"
+              id="api-key-input"
+              placeholder="sk-or-v1-..."
+              autocomplete="off"
+            />
+          </div>
+          <div class="settings-field">
+            <label for="model-select">AI Model</label>
+            <select id="model-select">
+              <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (fast, cheap)</option>
+              <option value="google/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro (powerful)</option>
+              <option value="openai/gpt-4o">GPT-4o</option>
+              <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+            </select>
+          </div>
+          <div class="settings-actions">
+            <span id="settings-status" class="settings-status"></span>
+            <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>

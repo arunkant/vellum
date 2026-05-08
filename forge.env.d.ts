@@ -1,14 +1,39 @@
 /// <reference types="@electron-forge/plugin-vite/forge-vite-env" />
 
-// Declare the vellum API exposed via preload
+interface ScreenshotEntry {
+  name: string;
+  path: string;
+  time: number;
+  aiText: string | null;
+  aiDescription: string | null;
+  aiModel: string | null;
+}
+
+interface AIResult {
+  extractedText: string;
+  description: string;
+  model: string;
+}
+
+interface AppConfig {
+  openrouterApiKey: string;
+  aiModel: string;
+}
+
 interface VellumAPI {
-  getScreenshots: () => Promise<Array<{ name: string; path: string; time: number }>>;
-  captureRegion: () => Promise<Array<{ name: string; path: string; time: number }>>;
-  captureFullScreen: () => Promise<Array<{ name: string; path: string; time: number }>>;
+  getScreenshots: () => Promise<ScreenshotEntry[]>;
+  captureRegion: () => Promise<ScreenshotEntry[]>;
+  captureFullScreen: () => Promise<ScreenshotEntry[]>;
   openScreenshot: (filepath: string) => Promise<boolean>;
-  deleteScreenshot: (filepath: string) => Promise<Array<{ name: string; path: string; time: number }>>;
+  deleteScreenshot: (filepath: string) => Promise<ScreenshotEntry[]>;
   showScreenshotsFolder: () => Promise<void>;
-  onScreenshotAdded: (callback: (screenshots: Array<{ name: string; path: string; time: number }>) => void) => () => void;
+  getConfig: () => Promise<AppConfig>;
+  saveConfig: (config: Partial<AppConfig>) => Promise<AppConfig>;
+  getAIResult: (filename: string) => Promise<AIResult | null>;
+  clearAICache: () => Promise<boolean>;
+  openExternal: (url: string) => Promise<void>;
+  onScreenshotAdded: (callback: (screenshots: ScreenshotEntry[]) => void) => () => void;
+  onAIResultReady: (callback: (data: { filename: string; text: string; description: string; model: string }) => void) => () => void;
 }
 
 declare global {

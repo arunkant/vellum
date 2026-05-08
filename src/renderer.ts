@@ -1,10 +1,26 @@
 import './index.css';
 
-type ScreenshotEntry = { name: string; path: string; time: number };
+type ScreenshotEntry = {
+  name: string;
+  path: string;
+  time: number;
+  aiText: string | null;
+  aiDescription: string | null;
+  aiModel: string | null;
+};
 
 const emptyState = document.getElementById('empty-state')!;
 const grid = document.getElementById('screenshots-grid')!;
 const statusText = document.getElementById('status-text')!;
+
+// --- Settings panel ---
+const settingsOverlay = document.getElementById('settings-overlay')!;
+const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+const saveSettingsBtn = document.getElementById('save-settings-btn')!;
+const settingsBtn = document.getElementById('settings-btn')!;
+const closeSettingsBtn = document.getElementById('close-settings-btn')!;
+const settingsStatus = document.getElementById('settings-status')!;
 
 function formatTime(ms: number): string {
   const date = new Date(ms);
@@ -27,6 +43,12 @@ function formatTime(ms: number): string {
   });
 }
 
+function escapeHTML(str: string): string {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function renderScreenshots(screenshots: ScreenshotEntry[]) {
   if (screenshots.length === 0) {
     emptyState.style.display = 'flex';
@@ -41,6 +63,21 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
   for (const shot of screenshots) {
     const card = document.createElement('div');
     card.className = 'screenshot-card';
+    card.dataset.filename = shot.name;
+
+    const hasAI = shot.aiText || shot.aiDescription;
+    const aiLoading = !hasAI && !!shot.aiText === false; // No AI data yet
+
+    let aiSection = '';
+    if (hasAI) {
+      aiSection = `
+        <div class="card-ai">
+          ${shot.aiDescription ? `<div class="ai-desc">🤖 ${escapeHTML(shot.aiDescription.slice(0, 120))}${shot.aiDescription.length > 120 ? '...' : ''}</div>` : ''}
+          ${shot.aiText ? `<div class="ai-text-preview">📝 <span>${escapeHTML(shot.aiText.slice(0, 80))}${shot.aiText.length > 80 ? '...' : ''}</span></div>` : ''}
+          ${shot.aiModel ? `<div class="ai-model-badge">${escapeHTML(shot.aiModel.split('/').pop() || shot.aiModel)}</div>` : ''}
+        </div>
+      `;
+    }
 
     card.innerHTML = `
       <div class="card-preview">
@@ -55,13 +92,15 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
         <span class="card-time" title="${new Date(shot.time).toLocaleString()}">${formatTime(shot.time)}</span>
         <span class="card-name" title="${shot.name}">${shot.name}</span>
       </div>
+      ${aiSection}
       <div class="card-actions">
+        ${hasAI ? '<button class="btn-icon" title="View AI details" data-action="view-ai" data-filename="' + shot.name + '">🔍</button>' : ''}
         <button class="btn-icon" title="Open" data-action="open" data-path="${shot.path}">👁️</button>
         <button class="btn-icon" title="Delete" data-action="delete" data-path="${shot.path}">🗑️</button>
       </div>
     `;
 
-    // Click on card preview to open
+    // Click on card preview to open the image
     const preview = card.querySelector('.card-preview')!;
     preview.addEventListener('click', () => {
       window.vellum.openScreenshot(shot.path);
@@ -78,21 +117,64 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
 
     const action = btn.dataset.action;
     const filepath = btn.dataset.path;
-    if (!filepath) return;
+    const filename = btn.dataset.filename;
 
-    if (action === 'open') {
+    if (action === 'open' && filepath) {
       await window.vellum.openScreenshot(filepath);
-    } else if (action === 'delete') {
+    } else if (action === 'delete' && filepath) {
       const updated = await window.vellum.deleteScreenshot(filepath);
       renderScreenshots(updated);
-      setStatus(`🗑️ Screenshot deleted`);
+      setStatus('🗑️ Screenshot deleted');
+    } else if (action === 'view-ai' && filename) {
+      showAIDetail(filename);
     }
+  });
+}
+
+function showAIDetail(filename: string) {
+  const card = document.querySelector(`[data-filename="${CSS.escape(filename)}"]`);
+  if (!card) return;
+
+  // Remove any existing detail panel
+  const existing = card.querySelector('.ai-detail-panel');
+  if (existing) {
+    existing.remove();
+    return;
+  }
+
+  window.vellum.getAIResult(filename).then((result) => {
+    if (!result) return;
+
+    const panel = document.createElement('div');
+    panel.className = 'ai-detail-panel';
+
+    panel.innerHTML = `
+      <div class="ai-detail-header">
+        <span>🤖 AI Analysis</span>
+        <span class="ai-model-badge">${escapeHTML(result.model.split('/').pop() || result.model)}</span>
+      </div>
+      ${result.description ? `
+        <div class="ai-detail-section">
+          <div class="ai-detail-label">📋 Description</div>
+          <div class="ai-detail-content">${escapeHTML(result.description)}</div>
+        </div>
+      ` : ''}
+      ${result.extractedText ? `
+        <div class="ai-detail-section">
+          <div class="ai-detail-label">📝 Extracted Text</div>
+          <pre class="ai-detail-text">${escapeHTML(result.extractedText)}</pre>
+        </div>
+      ` : ''}
+      <button class="btn btn-secondary btn-sm ai-detail-close">Close</button>
+    `;
+
+    panel.querySelector('.ai-detail-close')!.addEventListener('click', () => panel.remove());
+    card.appendChild(panel);
   });
 }
 
 function setStatus(msg: string) {
   statusText.textContent = msg;
-  // Auto-reset after 3 seconds
   setTimeout(() => {
     statusText.textContent = '🟢 Ready — ⌘⇧1 drag region | ⌘⇧2 full screen';
   }, 3000);
@@ -107,14 +189,72 @@ async function refreshScreenshots() {
   }
 }
 
+// --- Settings ---
+async function loadSettings() {
+  const config = await window.vellum.getConfig();
+  apiKeyInput.value = config.openrouterApiKey || '';
+  modelSelect.value = config.aiModel || 'google/gemini-2.0-flash-001';
+  updateSettingsHint(config.openrouterApiKey);
+}
+
+function updateSettingsHint(hasKey: string) {
+  const hint = document.getElementById('settings-hint');
+  if (hint) {
+    hint.style.display = hasKey ? 'none' : 'block';
+  }
+}
+
+settingsBtn.addEventListener('click', () => {
+  settingsOverlay.style.display = 'flex';
+  loadSettings();
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+  settingsOverlay.style.display = 'none';
+});
+
+// OpenRouter link opens in default browser, not in-app
+document.getElementById('openrouter-link')!.addEventListener('click', (e) => {
+  e.preventDefault();
+  window.vellum.openExternal('https://openrouter.ai/keys');
+});
+
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) {
+    settingsOverlay.style.display = 'none';
+  }
+});
+
+saveSettingsBtn.addEventListener('click', async () => {
+  const key = apiKeyInput.value.trim();
+  const model = modelSelect.value;
+  await window.vellum.saveConfig({ openrouterApiKey: key, aiModel: model });
+  settingsStatus.textContent = '✅ Settings saved!';
+  updateSettingsHint(key);
+  setTimeout(() => { settingsStatus.textContent = ''; }, 2000);
+});
+
+// Close settings with Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && settingsOverlay.style.display === 'flex') {
+    settingsOverlay.style.display = 'none';
+  }
+});
+
 async function init() {
-  // Load initial data
   await refreshScreenshots();
 
-  // Listen for new screenshots from main process
+  // Listen for new screenshots
   window.vellum.onScreenshotAdded((screenshots) => {
     renderScreenshots(screenshots);
     setStatus('📸 Screenshot captured!');
+  });
+
+  // Listen for AI results coming in
+  window.vellum.onAIResultReady((data) => {
+    setStatus(`🤖 AI analysis complete for ${data.filename}`);
+    // Refresh to show updated data
+    refreshScreenshots();
   });
 
   // Region capture button
@@ -136,7 +276,7 @@ async function init() {
     window.vellum.showScreenshotsFolder();
   });
 
-  // Keyboard shortcuts within the window
+  // In-window keyboard shortcuts
   document.addEventListener('keydown', async (e) => {
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
       e.preventDefault();
