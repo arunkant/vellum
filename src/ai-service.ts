@@ -265,3 +265,49 @@ export function clearAICache() {
     if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
   } catch { /* ignore */ }
 }
+
+// --- Chat history ---
+
+const chatsPath = path.join(app.getPath('userData'), 'chats.json');
+
+export interface ChatMessage {
+  role: 'user' | 'ai';
+  text: string;
+  time: number;
+}
+
+function getChats(): Record<string, ChatMessage[]> {
+  try {
+    if (fs.existsSync(chatsPath)) {
+      return JSON.parse(fs.readFileSync(chatsPath, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveChats(chats: Record<string, ChatMessage[]>) {
+  fs.writeFileSync(chatsPath, JSON.stringify(chats, null, 2), 'utf-8');
+}
+
+export function getChatHistory(filename: string): ChatMessage[] {
+  const chats = getChats();
+  return chats[filename] || [];
+}
+
+export function addChatMessage(filename: string, message: ChatMessage) {
+  const chats = getChats();
+  if (!chats[filename]) chats[filename] = [];
+  chats[filename].push(message);
+  saveChats(chats);
+}
+
+export function hasChatHistory(filename: string): boolean {
+  const chats = getChats();
+  return !!(chats[filename] && chats[filename].length > 0);
+}
+
+export function deleteChatHistory(filename: string) {
+  const chats = getChats();
+  delete chats[filename];
+  saveChats(chats);
+}

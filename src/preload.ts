@@ -7,6 +7,7 @@ export interface ScreenshotEntry {
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
+  hasChat: boolean;
 }
 
 export interface AIResult {
@@ -49,6 +50,9 @@ const api = {
   // AI
   getAIResult: (filename: string): Promise<AIResult | null> =>
     ipcRenderer.invoke('get-ai-result', filename),
+
+  openChatWindow: (filepath: string, filename: string): Promise<void> =>
+    ipcRenderer.invoke('open-chat-window', filepath, filename),
 
   clearAICache: (): Promise<boolean> =>
     ipcRenderer.invoke('clear-ai-cache'),

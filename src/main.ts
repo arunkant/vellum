@@ -16,7 +16,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { getOverlayHTML } from './overlay-content';
-import { analyzeScreenshot, chatAboutScreenshot, getConfig, saveConfig, getAIResult, clearAICache, type AIResult } from './ai-service';
+import { analyzeScreenshot, chatAboutScreenshot, getConfig, saveConfig, getAIResult, clearAICache, getChatHistory, addChatMessage, hasChatHistory, deleteChatHistory, type AIResult, type ChatMessage } from './ai-service';
 import { getChatWindowHTML } from './chat-window-content';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -75,6 +75,7 @@ function getScreenshots(): Array<{
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
+  hasChat: boolean;
 }> {
   try {
     const files = fs.readdirSync(screenshotsDir);
@@ -91,6 +92,7 @@ function getScreenshots(): Array<{
           aiText: ai?.extractedText || null,
           aiDescription: ai?.description || null,
           aiModel: ai?.model || null,
+          hasChat: hasChatHistory(f),
         };
       })
       .sort((a, b) => b.time - a.time);
@@ -299,7 +301,8 @@ function openChatWindow(filepath: string, filename: string) {
   chatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   chatWindow.setAlwaysOnTop(true, 'floating');
 
-  const html = getChatWindowHTML(filepath, filename);
+  const history = getChatHistory(filename);
+  const html = getChatWindowHTML(filepath, filename, history);
   chatWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
   chatWindow.once('ready-to-show', () => {
@@ -461,6 +464,7 @@ function setupIPC() {
   ipcMain.handle('delete-screenshot', async (_event, filepath: string) => {
     try {
       if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+      deleteChatHistory(path.basename(filepath));
     } catch { /* ignore */ }
     return getScreenshots();
   });
@@ -523,11 +527,28 @@ function setupIPC() {
 
   // Chat window IPC
   ipcMain.handle('chat-message', async (_event, filepath: string, message: string) => {
-    return await chatAboutScreenshot(filepath, message);
+    const filename = path.basename(filepath);
+    // Save user message
+    addChatMessage(filename, { role: 'user', text: message, time: Date.now() });
+    // Get AI reply
+    const reply = await chatAboutScreenshot(filepath, message);
+    if (reply) {
+      addChatMessage(filename, { role: 'ai', text: reply, time: Date.now() });
+    }
+    return reply;
+  });
+
+  ipcMain.handle('get-chat-history', (_event, filename: string) => {
+    return getChatHistory(filename);
   });
 
   ipcMain.on('chat-window-close', () => {
     closeChatWindow();
+  });
+
+  // Open chat window from renderer (gallery)
+  ipcMain.handle('open-chat-window', (_event, filepath: string, filename: string) => {
+    openChatWindow(filepath, filename);
   });
 }
 

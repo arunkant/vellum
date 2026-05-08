@@ -7,6 +7,7 @@ type ScreenshotEntry = {
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
+  hasChat: boolean;
 };
 
 const emptyState = document.getElementById('empty-state')!;
@@ -122,10 +123,11 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
       </div>
       <div class="card-info">
         <span class="card-time" title="${new Date(shot.time).toLocaleString()}">${formatTime(shot.time)}</span>
-        <span class="card-name" title="${shot.name}">${shot.name}</span>
+        <span class="card-name" title="${shot.name}">${shot.name}${shot.hasChat ? ' 💬' : ''}</span>
       </div>
       ${aiSection}
       <div class="card-actions">
+        ${shot.hasChat ? '<button class="btn-icon" title="Open chat" data-action="open-chat" data-filename="' + shot.name + '" data-path="' + shot.path + '">💬</button>' : ''}
         ${hasAI ? '<button class="btn-icon" title="View AI details" data-action="view-ai" data-filename="' + shot.name + '">🔍</button>' : ''}
         <button class="btn-icon" title="Open" data-action="open" data-path="${shot.path}">👁️</button>
         <button class="btn-icon" title="Delete" data-action="delete" data-path="${shot.path}">🗑️</button>
@@ -280,6 +282,8 @@ async function init() {
       setStatus('🗑️ Screenshot deleted');
     } else if (action === 'view-ai' && filename) {
       showAIDetail(filename);
+    } else if (action === 'open-chat' && filename && filepath) {
+      window.vellum.openChatWindow(filepath, filename);
     }
   });
 

@@ -7,6 +7,7 @@ interface ScreenshotEntry {
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
+  hasChat: boolean;
 }
 
 interface AIResult {
@@ -30,6 +31,7 @@ interface VellumAPI {
   getConfig: () => Promise<AppConfig>;
   saveConfig: (config: Partial<AppConfig>) => Promise<AppConfig>;
   getAIResult: (filename: string) => Promise<AIResult | null>;
+  openChatWindow: (filepath: string, filename: string) => Promise<void>;
   clearAICache: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
   onScreenshotAdded: (callback: (screenshots: ScreenshotEntry[]) => void) => () => void;

@@ -2,7 +2,7 @@
  * HTML content for the floating chat window that appears after a screenshot capture.
  * Loaded as a data URL in a small, frameless, always-on-top BrowserWindow.
  */
-export function getChatWindowHTML(filepath: string, filename: string): string {
+export function getChatWindowHTML(filepath: string, filename: string, history: Array<{ role: string; text: string; time: number }>): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -279,6 +279,7 @@ export function getChatWindowHTML(filepath: string, filename: string): string {
 
   const filepath = ${JSON.stringify(filepath)};
   const filename = ${JSON.stringify(filename)};
+  const savedHistory = ${JSON.stringify(history)};
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('chat-input');
   const sendBtn = document.getElementById('send-btn');
@@ -286,6 +287,14 @@ export function getChatWindowHTML(filepath: string, filename: string): string {
   const closeBtn = document.getElementById('close-btn');
 
   let isWaiting = false;
+
+  // Render saved chat history on load
+  if (savedHistory.length > 0) {
+    messagesEl.innerHTML = ''; // Clear default greeting
+    for (const msg of savedHistory) {
+      addMessage(msg.text, msg.role);
+    }
+  }
 
   function escapeHTML(str) {
     const div = document.createElement('div');
