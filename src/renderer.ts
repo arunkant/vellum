@@ -204,7 +204,7 @@ async function refreshScreenshots() {
 async function loadSettings() {
   const config = await window.vellum.getConfig();
   apiKeyInput.value = config.openrouterApiKey || '';
-  modelSelect.value = config.aiModel || 'google/gemini-2.0-flash-001';
+  modelSelect.value = config.aiModel || 'google/gemini-2.5-flash-lite';
   updateSettingsHint(config.openrouterApiKey);
 }
 

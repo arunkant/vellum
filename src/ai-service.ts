@@ -13,7 +13,7 @@ interface AppConfig {
 
 const defaultConfig: AppConfig = {
   openrouterApiKey: '',
-  aiModel: 'google/gemini-2.0-flash-001',
+  aiModel: 'google/gemini-2.5-flash-lite',
 };
 
 export function getConfig(): AppConfig {
