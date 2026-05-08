@@ -1,33 +1,143 @@
-/**
- * This file will automatically be loaded by vite and run in the "renderer" context.
- * To learn more about the differences between the "main" and the "renderer" context in
- * Electron, visit:
- *
- * https://electronjs.org/docs/tutorial/process-model
- *
- * By default, Node.js integration in this file is disabled. When enabling Node.js integration
- * in a renderer process, please be aware of potential security implications. You can read
- * more about security risks here:
- *
- * https://electronjs.org/docs/tutorial/security
- *
- * To enable Node.js integration in this file, open up `main.ts` and enable the `nodeIntegration`
- * flag:
- *
- * ```
- *  // Create the browser window.
- *  mainWindow = new BrowserWindow({
- *    width: 800,
- *    height: 600,
- *    webPreferences: {
- *      nodeIntegration: true
- *    }
- *  });
- * ```
- */
-
 import './index.css';
 
-console.log(
-  '👋 This message is being logged by "renderer.ts", included via Vite',
-);
+type ScreenshotEntry = { name: string; path: string; time: number };
+
+const emptyState = document.getElementById('empty-state')!;
+const grid = document.getElementById('screenshots-grid')!;
+const statusText = document.getElementById('status-text')!;
+
+function formatTime(ms: number): string {
+  const date = new Date(ms);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function renderScreenshots(screenshots: ScreenshotEntry[]) {
+  if (screenshots.length === 0) {
+    emptyState.style.display = 'flex';
+    grid.style.display = 'none';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  grid.style.display = 'grid';
+  grid.innerHTML = '';
+
+  for (const shot of screenshots) {
+    const card = document.createElement('div');
+    card.className = 'screenshot-card';
+
+    card.innerHTML = `
+      <div class="card-preview">
+        <img
+          src="file://${shot.path}"
+          alt="${shot.name}"
+          loading="lazy"
+          onerror="this.parentElement.innerHTML='<div class=\\'image-error\\'>🖼️<br/>Preview unavailable</div>'"
+        />
+      </div>
+      <div class="card-info">
+        <span class="card-time" title="${new Date(shot.time).toLocaleString()}">${formatTime(shot.time)}</span>
+        <span class="card-name" title="${shot.name}">${shot.name}</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn-icon" title="Open" data-action="open" data-path="${shot.path}">👁️</button>
+        <button class="btn-icon" title="Delete" data-action="delete" data-path="${shot.path}">🗑️</button>
+      </div>
+    `;
+
+    // Click on card preview to open
+    const preview = card.querySelector('.card-preview')!;
+    preview.addEventListener('click', () => {
+      window.vellum.openScreenshot(shot.path);
+    });
+
+    grid.appendChild(card);
+  }
+
+  // Delegate button clicks
+  grid.addEventListener('click', async (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest('[data-action]') as HTMLElement | null;
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const filepath = btn.dataset.path;
+    if (!filepath) return;
+
+    if (action === 'open') {
+      await window.vellum.openScreenshot(filepath);
+    } else if (action === 'delete') {
+      const updated = await window.vellum.deleteScreenshot(filepath);
+      renderScreenshots(updated);
+      setStatus(`🗑️ Screenshot deleted`);
+    }
+  });
+}
+
+function setStatus(msg: string) {
+  statusText.textContent = msg;
+  // Auto-reset after 3 seconds
+  setTimeout(() => {
+    statusText.textContent = '🟢 Ready — Press Cmd+Shift+1 to capture from anywhere';
+  }, 3000);
+}
+
+async function refreshScreenshots() {
+  try {
+    const screenshots = await window.vellum.getScreenshots();
+    renderScreenshots(screenshots);
+  } catch (err) {
+    console.error('Failed to load screenshots:', err);
+  }
+}
+
+async function init() {
+  // Load initial data
+  await refreshScreenshots();
+
+  // Listen for new screenshots from main process
+  window.vellum.onScreenshotAdded((screenshots) => {
+    renderScreenshots(screenshots);
+    setStatus('📸 Screenshot captured!');
+  });
+
+  // Capture button
+  document.getElementById('capture-btn')!.addEventListener('click', async () => {
+    setStatus('📷 Capturing...');
+    const screenshots = await window.vellum.captureScreenshot();
+    renderScreenshots(screenshots);
+    setStatus('📸 Screenshot captured!');
+  });
+
+  // Open folder button
+  document.getElementById('folder-btn')!.addEventListener('click', () => {
+    window.vellum.showScreenshotsFolder();
+  });
+
+  // Keyboard shortcut for capture within the window
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
+      e.preventDefault();
+      window.vellum.captureScreenshot().then(renderScreenshots);
+      setStatus('📸 Screenshot captured!');
+    }
+  });
+}
+
+init();

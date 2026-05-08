@@ -2,12 +2,38 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Hello World!</title>
-
+    <title>Vellum - AI Helper</title>
   </head>
   <body>
-    <h1>💖 Hello World!</h1>
-    <p>Welcome to your Electron application.</p>
+    <div id="app">
+      <header>
+        <div class="header-left">
+          <h1>📸 Vellum</h1>
+          <span class="subtitle">AI Helper — Screenshot Capture</span>
+        </div>
+        <div class="header-right">
+          <button id="capture-btn" class="btn btn-primary">
+            <span class="icon">📷</span> Capture (⌘⇧1)
+          </button>
+          <button id="folder-btn" class="btn btn-secondary">
+            <span class="icon">📁</span> Open Folder
+          </button>
+        </div>
+      </header>
+
+      <div class="status-bar">
+        <span id="status-text">🟢 Ready — Press Cmd+Shift+1 to capture from anywhere</span>
+      </div>
+
+      <main id="screenshots-container">
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">📸</div>
+          <h2>No screenshots yet</h2>
+          <p>Press <kbd>Cmd+Shift+1</kbd> (or <kbd>Ctrl+Shift+1</kbd> on Windows/Linux) to capture your screen. The hotkey works even when this window is hidden.</p>
+        </div>
+        <div id="screenshots-grid" class="screenshots-grid" style="display: none;"></div>
+      </main>
+    </div>
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>
