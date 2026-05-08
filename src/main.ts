@@ -209,6 +209,7 @@ function openRegionCapture() {
 
   const totalBounds = getTotalBounds();
 
+  // Create hidden first to avoid space-switch on macOS
   overlayWindow = new BrowserWindow({
     x: totalBounds.x,
     y: totalBounds.y,
@@ -222,6 +223,7 @@ function openRegionCapture() {
     hasShadow: false,
     fullscreenable: false,
     focusable: true,
+    show: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -229,13 +231,17 @@ function openRegionCapture() {
     },
   });
 
-  // Prevent the overlay from being captured by desktopCapturer
-  overlayWindow.setVisibleOnAllWorkspaces(true);
+  // Must set these BEFORE showing to appear on fullscreen spaces
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
 
   // Load the overlay HTML as a data URL
   const html = getOverlayHTML(totalBounds);
   overlayWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+  overlayWindow.once('ready-to-show', () => {
+    overlayWindow?.showInactive();
+  });
 
   // Prevent window from being closed by Cmd+W / Alt+F4
   overlayWindow.on('close', (e) => {
@@ -281,6 +287,7 @@ function openChatWindow(filepath: string, filename: string) {
     resizable: true,
     hasShadow: true,
     focusable: true,
+    show: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -289,10 +296,16 @@ function openChatWindow(filepath: string, filename: string) {
     title: 'Vellum Chat',
   });
 
+  chatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   chatWindow.setAlwaysOnTop(true, 'floating');
 
   const html = getChatWindowHTML(filepath, filename);
   chatWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+  chatWindow.once('ready-to-show', () => {
+    chatWindow?.show();
+    chatWindow?.focus();
+  });
 
   chatWindow.on('closed', () => {
     chatWindow = null;
@@ -386,10 +399,7 @@ function createTray() {
       label: 'Capture Region (Drag)',
       accelerator: 'CmdOrCtrl+Shift+1',
       click: () => {
-        // Hide the main window so it's not in the way
-        mainWindow?.hide();
-        // Small delay to let the window hide before overlay appears
-        setTimeout(() => openRegionCapture(), 150);
+        openRegionCapture();
       },
     },
     {
@@ -422,8 +432,7 @@ function registerShortcuts() {
   // Region capture
   const ok1 = globalShortcut.register('CmdOrCtrl+Shift+1', () => {
     console.log('Global shortcut: CmdOrCtrl+Shift+1 (region capture)');
-    mainWindow?.hide();
-    setTimeout(() => openRegionCapture(), 150);
+    openRegionCapture();
   });
 
   // Full-screen capture
@@ -458,8 +467,6 @@ function setupIPC() {
 
   // Trigger region capture from renderer
   ipcMain.handle('capture-region', async () => {
-    mainWindow?.hide();
-    await new Promise((resolve) => setTimeout(resolve, 150));
     openRegionCapture();
     return getScreenshots();
   });
@@ -536,6 +543,9 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   registerShortcuts();
+
+  // Run as accessory app — tray only, never steals focus from fullscreen apps
+  app.setActivationPolicy('accessory');
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
