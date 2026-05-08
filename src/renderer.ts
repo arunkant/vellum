@@ -8,6 +8,7 @@ type ScreenshotEntry = {
   aiDescription: string | null;
   aiModel: string | null;
   hasChat: boolean;
+  chatPreview: string | null;
 };
 
 const emptyState = document.getElementById('empty-state')!;
@@ -29,6 +30,7 @@ function filterScreenshots(query: string): ScreenshotEntry[] {
     if (s.name.toLowerCase().includes(q)) return true;
     if (s.aiText && s.aiText.toLowerCase().includes(q)) return true;
     if (s.aiDescription && s.aiDescription.toLowerCase().includes(q)) return true;
+    if (s.chatPreview && s.chatPreview.toLowerCase().includes(q)) return true;
     return false;
   });
 }

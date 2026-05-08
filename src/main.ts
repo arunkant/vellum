@@ -76,6 +76,7 @@ function getScreenshots(): Array<{
   aiDescription: string | null;
   aiModel: string | null;
   hasChat: boolean;
+  chatPreview: string | null;
 }> {
   try {
     const files = fs.readdirSync(screenshotsDir);
@@ -85,6 +86,10 @@ function getScreenshots(): Array<{
         const fullPath = path.join(screenshotsDir, f);
         const stats = fs.statSync(fullPath);
         const ai = getAIResult(f);
+        const chatMsgs = getChatHistory(f);
+        const chatPreview = chatMsgs.length > 0
+          ? chatMsgs.map((m) => m.text).join(' ').slice(0, 300)
+          : null;
         return {
           name: f,
           path: fullPath,
@@ -92,7 +97,8 @@ function getScreenshots(): Array<{
           aiText: ai?.extractedText || null,
           aiDescription: ai?.description || null,
           aiModel: ai?.model || null,
-          hasChat: hasChatHistory(f),
+          hasChat: chatMsgs.length > 0,
+          chatPreview,
         };
       })
       .sort((a, b) => b.time - a.time);

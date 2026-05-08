@@ -8,6 +8,7 @@ export interface ScreenshotEntry {
   aiDescription: string | null;
   aiModel: string | null;
   hasChat: boolean;
+  chatPreview: string | null;
 }
 
 export interface AIResult {
