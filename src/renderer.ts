@@ -108,27 +108,6 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
 
     grid.appendChild(card);
   }
-
-  // Delegate button clicks
-  grid.addEventListener('click', async (e) => {
-    const target = e.target as HTMLElement;
-    const btn = target.closest('[data-action]') as HTMLElement | null;
-    if (!btn) return;
-
-    const action = btn.dataset.action;
-    const filepath = btn.dataset.path;
-    const filename = btn.dataset.filename;
-
-    if (action === 'open' && filepath) {
-      await window.vellum.openScreenshot(filepath);
-    } else if (action === 'delete' && filepath) {
-      const updated = await window.vellum.deleteScreenshot(filepath);
-      renderScreenshots(updated);
-      setStatus('🗑️ Screenshot deleted');
-    } else if (action === 'view-ai' && filename) {
-      showAIDetail(filename);
-    }
-  });
 }
 
 function showAIDetail(filename: string) {
@@ -243,6 +222,27 @@ document.addEventListener('keydown', (e) => {
 
 async function init() {
   await refreshScreenshots();
+
+  // Single delegated click handler for all card actions
+  grid.addEventListener('click', async (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest('[data-action]') as HTMLElement | null;
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const filepath = btn.dataset.path;
+    const filename = btn.dataset.filename;
+
+    if (action === 'open' && filepath) {
+      await window.vellum.openScreenshot(filepath);
+    } else if (action === 'delete' && filepath) {
+      const updated = await window.vellum.deleteScreenshot(filepath);
+      renderScreenshots(updated);
+      setStatus('🗑️ Screenshot deleted');
+    } else if (action === 'view-ai' && filename) {
+      showAIDetail(filename);
+    }
+  });
 
   // Listen for new screenshots
   window.vellum.onScreenshotAdded((screenshots) => {
