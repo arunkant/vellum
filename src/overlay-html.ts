@@ -73,58 +73,71 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
 
   const totalBounds = ${JSON.stringify(totalBounds)};
 
-  let startX = 0, startY = 0;
+  // Window-local CSS px (clientX/Y) for drawing; absolute screen logical
+  // points (screenX/Y) for the captured region. We don't derive screen coords
+  // from clientX + totalBounds, since the OS can shift the window's actual
+  // on-screen position slightly from what we requested.
+  let startLX = 0, startLY = 0;
+  let curLX = 0, curLY = 0;
+  let startSX = 0, startSY = 0;
   let isDragging = false;
   let cancelled = false;
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-  function updateSelection() {
+  function render() {
     if (!isDragging) return;
-    const pt = api.cursorPoint();
-    const currentX = clamp(pt.x, totalBounds.x, totalBounds.x + totalBounds.width);
-    const currentY = clamp(pt.y, totalBounds.y, totalBounds.y + totalBounds.height);
+    const cx = clamp(curLX, 0, totalBounds.width);
+    const cy = clamp(curLY, 0, totalBounds.height);
 
-    const x = Math.min(startX, currentX);
-    const y = Math.min(startY, currentY);
-    const w = Math.abs(currentX - startX);
-    const h = Math.abs(currentY - startY);
+    const x = Math.min(startLX, cx);
+    const y = Math.min(startLY, cy);
+    const w = Math.abs(cx - startLX);
+    const h = Math.abs(cy - startLY);
 
     selection.style.display = 'block';
-    selection.style.left = (x - totalBounds.x) + 'px';
-    selection.style.top = (y - totalBounds.y) + 'px';
+    selection.style.left = x + 'px';
+    selection.style.top = y + 'px';
     selection.style.width = w + 'px';
     selection.style.height = h + 'px';
 
     info.style.display = 'block';
-    info.style.left = Math.min(currentX - totalBounds.x + 16, totalBounds.width - 120) + 'px';
-    info.style.top = Math.max(currentY - totalBounds.y - 30, 4) + 'px';
+    info.style.left = Math.min(cx + 16, totalBounds.width - 120) + 'px';
+    info.style.top = Math.max(cy - 30, 4) + 'px';
     info.textContent = Math.round(w) + ' × ' + Math.round(h) + ' px';
   }
 
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    const pt = api.cursorPoint();
-    startX = pt.x;
-    startY = pt.y;
+    startLX = e.clientX;
+    startLY = e.clientY;
+    curLX = e.clientX;
+    curLY = e.clientY;
+    startSX = e.screenX;
+    startSY = e.screenY;
     isDragging = true;
     hint.style.display = 'none';
   });
 
-  document.addEventListener('mousemove', updateSelection);
+  document.addEventListener('mousemove', (e) => {
+    curLX = e.clientX;
+    curLY = e.clientY;
+    render();
+  });
 
-  document.addEventListener('mouseup', () => {
+  document.addEventListener('mouseup', (e) => {
     if (!isDragging) return;
     isDragging = false;
 
-    const pt = api.cursorPoint();
-    const endX = clamp(pt.x, totalBounds.x, totalBounds.x + totalBounds.width);
-    const endY = clamp(pt.y, totalBounds.y, totalBounds.y + totalBounds.height);
+    const endLX = clamp(e.clientX, 0, totalBounds.width);
+    const endLY = clamp(e.clientY, 0, totalBounds.height);
+    const w = Math.abs(endLX - startLX);
+    const h = Math.abs(endLY - startLY);
 
-    const x = Math.min(startX, endX);
-    const y = Math.min(startY, endY);
-    const w = Math.abs(endX - startX);
-    const h = Math.abs(endY - startY);
+    // Absolute screen coords: use the event's screenX/Y so we don't rely on
+    // the window landing exactly where we requested.
+    const x = Math.min(startSX, e.screenX);
+    const y = Math.min(startSY, e.screenY);
 
     if (w < 10 || h < 10) {
       api.cancelled();

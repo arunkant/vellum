@@ -1,4 +1,4 @@
-import { ipcMain, screen, shell } from 'electron';
+import { ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { getConfig, saveConfig } from './config';
 import { chatAboutScreenshot } from './ai';
@@ -61,10 +61,6 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   ipcMain.handle('open-external', (_e, url: string) => shell.openExternal(url));
 
   // Overlay → main
-  ipcMain.on('overlay:cursor-point', (e) => {
-    e.returnValue = screen.getCursorScreenPoint();
-  });
-
   ipcMain.on('overlay:selected', async (_e, region: Region) => {
     closeOverlay();
     // Brief delay so the overlay isn't captured in the screenshot.
