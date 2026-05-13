@@ -104,7 +104,13 @@ export function openRegionCapture() {
 
   overlayWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getOverlayHTML(total))}`);
 
-  overlayWindow.once('ready-to-show', () => overlayWindow?.showInactive());
+  // Show + focus so the custom CSS cursor takes effect immediately. With
+  // showInactive() on macOS, transparent always-on-top windows often keep the
+  // previous app's cursor until they receive a mouse event.
+  overlayWindow.once('ready-to-show', () => {
+    overlayWindow?.show();
+    overlayWindow?.focus();
+  });
 
   overlayWindow.on('close', (e) => {
     if (overlayWindow && !overlayWindow.isDestroyed()) e.preventDefault();

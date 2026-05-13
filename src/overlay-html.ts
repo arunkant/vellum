@@ -12,7 +12,8 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
   html, body {
     width: 100%; height: 100%;
     overflow: hidden;
-    cursor: crosshair;
+    /* Custom precision crosshair: white lines with a dark outline for contrast on any background, and a purple center dot. Hotspot is the center (16,16). */
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g fill='none' stroke-linecap='round'><g stroke='black' stroke-width='3'><line x1='16' y1='2' x2='16' y2='12'/><line x1='16' y1='20' x2='16' y2='30'/><line x1='2' y1='16' x2='12' y2='16'/><line x1='20' y1='16' x2='30' y2='16'/></g><g stroke='white' stroke-width='1.5'><line x1='16' y1='2' x2='16' y2='12'/><line x1='16' y1='20' x2='16' y2='30'/><line x1='2' y1='16' x2='12' y2='16'/><line x1='20' y1='16' x2='30' y2='16'/></g></g><circle cx='16' cy='16' r='2' fill='%238b5cf6'/></svg>") 16 16, crosshair;
     user-select: none;
     background: transparent;
   }
