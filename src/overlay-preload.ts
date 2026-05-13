@@ -1,0 +1,14 @@
+import { contextBridge, ipcRenderer } from 'electron';
+
+export interface Point { x: number; y: number }
+export interface Region { x: number; y: number; width: number; height: number }
+
+const api = {
+  cursorPoint: (): Point => ipcRenderer.sendSync('overlay:cursor-point'),
+  selected: (region: Region) => ipcRenderer.send('overlay:selected', region),
+  cancelled: () => ipcRenderer.send('overlay:cancelled'),
+};
+
+contextBridge.exposeInMainWorld('overlay', api);
+
+export type OverlayAPI = typeof api;

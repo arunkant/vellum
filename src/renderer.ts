@@ -101,7 +101,6 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
     card.dataset.filename = shot.name;
 
     const hasAI = shot.aiText || shot.aiDescription;
-    const aiLoading = !hasAI && !!shot.aiText === false; // No AI data yet
 
     let aiSection = '';
     if (hasAI) {
@@ -284,8 +283,8 @@ async function init() {
       setStatus('🗑️ Screenshot deleted');
     } else if (action === 'view-ai' && filename) {
       showAIDetail(filename);
-    } else if (action === 'open-chat' && filename && filepath) {
-      window.vellum.openChatWindow(filepath, filename);
+    } else if (action === 'open-chat' && filepath) {
+      window.vellum.openChatWindow(filepath);
     }
   });
 

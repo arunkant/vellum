@@ -1,7 +1,6 @@
 /**
- * HTML content for the region capture overlay window.
- * This is loaded as a data URL in a transparent fullscreen BrowserWindow.
- * It handles mouse drag to select a screen region.
+ * HTML for the region capture overlay window. Loaded as a data URL into a
+ * transparent fullscreen BrowserWindow with `overlay-preload.js`.
  */
 export function getOverlayHTML(totalBounds: { x: number; y: number; width: number; height: number }): string {
   return `<!DOCTYPE html>
@@ -18,9 +17,7 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     background: transparent;
   }
   #overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.35);
     pointer-events: none;
   }
@@ -55,12 +52,7 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     pointer-events: none;
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
   }
-  #hint span {
-    display: block;
-    font-size: 11px;
-    opacity: 0.6;
-    margin-top: 6px;
-  }
+  #hint span { display: block; font-size: 11px; opacity: 0.6; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -74,30 +66,24 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
 </div>
 
 <script>
-  const { ipcRenderer } = require('electron');
-
+  const api = window.overlay;
   const selection = document.getElementById('selection');
   const info = document.getElementById('info');
   const hint = document.getElementById('hint');
+
+  const totalBounds = ${JSON.stringify(totalBounds)};
 
   let startX = 0, startY = 0;
   let isDragging = false;
   let cancelled = false;
 
-  const totalBounds = ${JSON.stringify(totalBounds)};
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-  function screenX(e) { return totalBounds.x + e.clientX; }
-  function screenY(e) { return totalBounds.y + e.clientY; }
-
-  function clamp(val, min, max) {
-    return Math.max(min, Math.min(max, val));
-  }
-
-  function updateSelection(e) {
+  function updateSelection() {
     if (!isDragging) return;
-
-    const currentX = clamp(screenX(e), totalBounds.x, totalBounds.x + totalBounds.width);
-    const currentY = clamp(screenY(e), totalBounds.y, totalBounds.y + totalBounds.height);
+    const pt = api.cursorPoint();
+    const currentX = clamp(pt.x, totalBounds.x, totalBounds.x + totalBounds.width);
+    const currentY = clamp(pt.y, totalBounds.y, totalBounds.y + totalBounds.height);
 
     const x = Math.min(startX, currentX);
     const y = Math.min(startY, currentY);
@@ -111,29 +97,29 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     selection.style.height = h + 'px';
 
     info.style.display = 'block';
-    const infoX = Math.min(currentX - totalBounds.x + 16, totalBounds.width - 120);
-    const infoY = Math.max(currentY - totalBounds.y - 30, 4);
-    info.style.left = infoX + 'px';
-    info.style.top = infoY + 'px';
+    info.style.left = Math.min(currentX - totalBounds.x + 16, totalBounds.width - 120) + 'px';
+    info.style.top = Math.max(currentY - totalBounds.y - 30, 4) + 'px';
     info.textContent = Math.round(w) + ' × ' + Math.round(h) + ' px';
   }
 
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    startX = screenX(e);
-    startY = screenY(e);
+    const pt = api.cursorPoint();
+    startX = pt.x;
+    startY = pt.y;
     isDragging = true;
     hint.style.display = 'none';
   });
 
   document.addEventListener('mousemove', updateSelection);
 
-  document.addEventListener('mouseup', (e) => {
+  document.addEventListener('mouseup', () => {
     if (!isDragging) return;
     isDragging = false;
 
-    const endX = clamp(screenX(e), totalBounds.x, totalBounds.x + totalBounds.width);
-    const endY = clamp(screenY(e), totalBounds.y, totalBounds.y + totalBounds.height);
+    const pt = api.cursorPoint();
+    const endX = clamp(pt.x, totalBounds.x, totalBounds.x + totalBounds.width);
+    const endY = clamp(pt.y, totalBounds.y, totalBounds.y + totalBounds.height);
 
     const x = Math.min(startX, endX);
     const y = Math.min(startY, endY);
@@ -141,40 +127,28 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     const h = Math.abs(endY - startY);
 
     if (w < 10 || h < 10) {
-      ipcRenderer.send('capture-cancelled');
+      api.cancelled();
       return;
     }
-
-    ipcRenderer.send('capture-region-selected', {
-      x: Math.round(x),
-      y: Math.round(y),
-      width: Math.round(w),
-      height: Math.round(h),
-    });
+    api.selected({ x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) });
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       cancelled = true;
-      ipcRenderer.send('capture-cancelled');
+      api.cancelled();
     }
   });
 
-  // If user clicks without meaningful drag, capture full screen
-  document.addEventListener('click', (e) => {
+  // Plain click without meaningful drag → full screen.
+  document.addEventListener('click', () => {
     setTimeout(() => {
       if (!isDragging && !cancelled && selection.style.display === 'none') {
-        ipcRenderer.send('capture-region-selected', {
-          x: totalBounds.x,
-          y: totalBounds.y,
-          width: totalBounds.width,
-          height: totalBounds.height,
-        });
+        api.selected({ x: totalBounds.x, y: totalBounds.y, width: totalBounds.width, height: totalBounds.height });
       }
     }, 50);
   });
 
-  // Prevent context menu
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 </script>
 </body>

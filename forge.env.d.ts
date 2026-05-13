@@ -32,8 +32,7 @@ interface VellumAPI {
   getConfig: () => Promise<AppConfig>;
   saveConfig: (config: Partial<AppConfig>) => Promise<AppConfig>;
   getAIResult: (filename: string) => Promise<AIResult | null>;
-  openChatWindow: (filepath: string, filename: string) => Promise<void>;
-  clearAICache: () => Promise<boolean>;
+  openChatWindow: (filepath: string) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   onScreenshotAdded: (callback: (screenshots: ScreenshotEntry[]) => void) => () => void;
   onAIResultReady: (callback: (data: { filename: string; text: string; description: string; model: string }) => void) => () => void;
@@ -44,3 +43,5 @@ declare global {
     vellum: VellumAPI;
   }
 }
+
+export {};

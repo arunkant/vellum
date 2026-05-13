@@ -52,11 +52,8 @@ const api = {
   getAIResult: (filename: string): Promise<AIResult | null> =>
     ipcRenderer.invoke('get-ai-result', filename),
 
-  openChatWindow: (filepath: string, filename: string): Promise<void> =>
-    ipcRenderer.invoke('open-chat-window', filepath, filename),
-
-  clearAICache: (): Promise<boolean> =>
-    ipcRenderer.invoke('clear-ai-cache'),
+  openChatWindow: (filepath: string): Promise<void> =>
+    ipcRenderer.invoke('open-chat-window', filepath),
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
