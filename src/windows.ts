@@ -3,7 +3,7 @@ import path from 'node:path';
 import { getOverlayHTML } from './overlay-html';
 import { getChatHTML } from './chat-html';
 import { getTotalBounds } from './capture';
-import { chatHistory } from './storage';
+import { chatMessagesTbl } from './db';
 import { listScreenshots } from './screenshots';
 
 let mainWindow: BrowserWindow | null = null;
@@ -156,7 +156,7 @@ export function openChatWindow(filepath: string) {
   chatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   chatWindow.setAlwaysOnTop(true, 'floating');
 
-  const html = getChatHTML(filepath, chatHistory.get(path.basename(filepath)));
+  const html = getChatHTML(filepath, chatMessagesTbl.getByFilename(path.basename(filepath)));
   chatWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
   chatWindow.once('ready-to-show', () => {

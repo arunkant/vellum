@@ -2,7 +2,7 @@ import { ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { getConfig, saveConfig } from './config';
 import { chatAboutScreenshot } from './ai';
-import { aiCache, chatHistory } from './storage';
+import { aiResultsTbl, chatMessagesTbl, screenshotsTbl } from './db';
 import {
   listScreenshots,
   resolveScreenshotPath,
@@ -55,7 +55,7 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
 
   ipcMain.handle('get-ai-result', (_e, filename: string) => {
     const safe = resolveScreenshotPath(filename);
-    return safe ? aiCache.get(path.basename(safe)) : null;
+    return safe ? aiResultsTbl.getByFilename(path.basename(safe)) : null;
   });
 
   ipcMain.handle('open-external', (_e, url: string) => shell.openExternal(url));
@@ -75,12 +75,13 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   ipcMain.handle('chat-message', async (_e, filepath: string, message: string) => {
     const safe = resolveScreenshotPath(filepath);
     if (!safe || typeof message !== 'string' || message.length === 0) return null;
-    const filename = path.basename(safe);
+    const row = screenshotsTbl.findByFilename(path.basename(safe));
+    if (!row) return null;
 
-    chatHistory.add(filename, { role: 'user', text: message, time: Date.now() });
+    chatMessagesTbl.add(row.id, { role: 'user', text: message, time: Date.now() });
     const reply = await chatAboutScreenshot(safe, message);
     if (reply) {
-      chatHistory.add(filename, { role: 'ai', text: reply, time: Date.now() });
+      chatMessagesTbl.add(row.id, { role: 'ai', text: reply, time: Date.now() });
     }
     return reply;
   });

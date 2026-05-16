@@ -3,6 +3,7 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { analyzeScreenshot } from './ai';
 import { captureFullScreen } from './capture';
+import { initDB } from './db';
 import { resolveScreenshotPath } from './screenshots';
 import { setupIPC } from './ipc';
 import {
@@ -55,6 +56,8 @@ function registerShortcuts() {
 }
 
 app.whenReady().then(() => {
+  initDB();
+
   // Custom protocol so the renderer can load screenshots safely
   // (file:// is blocked under contextIsolation).
   protocol.handle('vellum-file', (request) => {

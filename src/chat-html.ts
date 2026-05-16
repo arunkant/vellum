@@ -1,4 +1,4 @@
-import type { ChatMessage } from './storage';
+import type { ChatMessage } from './db';
 
 /**
  * HTML for the floating chat window. Loaded as a data URL with `chat-preload.js`.

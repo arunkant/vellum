@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-import { aiCache, chatHistory } from './storage';
+import { listScreenshotEntries, screenshotsTbl } from './db';
 
 export const screenshotsDir = path.join(app.getPath('userData'), 'screenshots');
 
@@ -37,26 +37,18 @@ export function resolveScreenshotPath(input: string): string | null {
 
 export function listScreenshots(): ScreenshotEntry[] {
   try {
-    return fs.readdirSync(screenshotsDir)
-      .filter((f) => f.endsWith('.png'))
-      .map((f) => {
-        const fullPath = path.join(screenshotsDir, f);
-        const stats = fs.statSync(fullPath);
-        const ai = aiCache.get(f);
-        const msgs = chatHistory.get(f);
-        return {
-          name: f,
-          path: fullPath,
-          time: stats.mtimeMs,
-          aiText: ai?.extractedText ?? null,
-          aiDescription: ai?.description ?? null,
-          aiModel: ai?.model ?? null,
-          hasChat: msgs.length > 0,
-          chatPreview: msgs.length > 0 ? msgs.map((m) => m.text).join(' ').slice(0, 300) : null,
-        };
-      })
-      .sort((a, b) => b.time - a.time);
-  } catch {
+    return listScreenshotEntries().map((r) => ({
+      name: r.name,
+      path: r.path,
+      time: r.time,
+      aiText: r.aiText,
+      aiDescription: r.aiDescription,
+      aiModel: r.aiModel,
+      hasChat: r.chatCount > 0,
+      chatPreview: r.chatPreview ? r.chatPreview.slice(0, 300) : null,
+    }));
+  } catch (err) {
+    console.error('Failed to list screenshots:', err);
     return [];
   }
 }
@@ -64,7 +56,7 @@ export function listScreenshots(): ScreenshotEntry[] {
 export function deleteScreenshot(filepath: string) {
   try {
     if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
-    chatHistory.remove(path.basename(filepath));
+    screenshotsTbl.deleteByFilename(path.basename(filepath));
   } catch (err) {
     console.error('Failed to delete screenshot:', err);
   }
