@@ -72,6 +72,11 @@ app.whenReady().then(() => {
   // Tray-only accessory app — doesn't steal focus from fullscreen apps.
   app.setActivationPolicy('accessory');
 
+  // Launch automatically at login, hidden in the tray.
+  if (app.isPackaged) {
+    app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow();

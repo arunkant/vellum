@@ -3,18 +3,37 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import path from 'node:path';
 
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    // Forge appends the correct extension per platform (.icns/.ico/.png).
+    icon: path.resolve(__dirname, 'assets/icon'),
+    // Ship the assets/ folder alongside the app so the tray icon (and any
+    // other runtime-loaded resources) are resolvable from process.resourcesPath.
+    extraResource: ['./assets'],
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ['darwin']),
+    new MakerDMG({
+      icon: path.resolve(__dirname, 'assets/icon.icns'),
+      background: path.resolve(__dirname, 'assets/dmg-background.png'),
+      // 540x380 window; positions match the arrow drawn in the background.
+      additionalDMGOptions: {
+        window: { size: { width: 540, height: 380 } },
+      },
+      contents: (opts) => [
+        { x: 140, y: 210, type: 'file', path: (opts as { appPath: string }).appPath },
+        { x: 400, y: 210, type: 'link', path: '/Applications' },
+      ],
+    }, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),
   ],

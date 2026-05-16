@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# Intermediate iconset (input to iconutil — only icon.icns is committed)
+assets/icon.iconset/

@@ -173,23 +173,17 @@ export function closeChatWindow() {
   }
 }
 
-// 16x16 purple circle, drawn programmatically — no asset files needed.
+// Loads assets/trayTemplate.png on macOS (auto-tinted by menubar) and
+// assets/trayColor.png elsewhere. Electron picks up the @2x/@3x variants
+// automatically based on the filename convention.
 function createTrayIcon(): Electron.NativeImage {
-  const size = 16;
-  const buffer = Buffer.alloc(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const dist = Math.hypot(x - size / 2, y - size / 2);
-      if (dist <= size / 2 - 1) {
-        buffer[idx] = 139;
-        buffer[idx + 1] = 92;
-        buffer[idx + 2] = 246;
-        buffer[idx + 3] = dist < size / 2 - 3 ? 255 : 128;
-      }
-    }
-  }
-  return nativeImage.createFromBuffer(buffer, { width: size, height: size });
+  const assetsDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'assets')
+    : path.join(app.getAppPath(), 'assets');
+  const file = process.platform === 'darwin' ? 'trayTemplate.png' : 'trayColor.png';
+  const img = nativeImage.createFromPath(path.join(assetsDir, file));
+  if (process.platform === 'darwin') img.setTemplateImage(true);
+  return img;
 }
 
 export function createTray(handlers: { onRegion(): void; onFull(): void }) {
