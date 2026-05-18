@@ -14,47 +14,57 @@ export function getOverlayHTML(displayBounds: { x: number; y: number; width: num
     width: 100%; height: 100%;
     overflow: hidden;
     /* Custom precision crosshair: white lines with a dark outline for contrast on any background, and a purple center dot. Hotspot is the center (16,16). */
-    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g fill='none' stroke-linecap='round'><g stroke='black' stroke-width='3'><line x1='16' y1='2' x2='16' y2='12'/><line x1='16' y1='20' x2='16' y2='30'/><line x1='2' y1='16' x2='12' y2='16'/><line x1='20' y1='16' x2='30' y2='16'/></g><g stroke='white' stroke-width='1.5'><line x1='16' y1='2' x2='16' y2='12'/><line x1='16' y1='20' x2='16' y2='30'/><line x1='2' y1='16' x2='12' y2='16'/><line x1='20' y1='16' x2='30' y2='16'/></g></g><circle cx='16' cy='16' r='2' fill='%238b5cf6'/></svg>") 16 16, crosshair;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g fill='none' stroke-linecap='round'><g stroke='black' stroke-width='3'><line x1='16' y1='2' x2='16' y2='12'/><line x1='16' y1='20' x2='16' y2='30'/><line x1='2' y1='16' x2='12' y2='16'/><line x1='20' y1='16' x2='30' y2='16'/></g><g stroke='white' stroke-width='1.5'><line x1='16' y1='2' x2='16' y2='12'/><line x1='16' y1='20' x2='16' y2='30'/><line x1='2' y1='16' x2='12' y2='16'/><line x1='20' y1='16' x2='30' y2='16'/></g></g><circle cx='16' cy='16' r='2' fill='%233b82f6'/></svg>") 16 16, crosshair;
     user-select: none;
     background: transparent;
   }
   #overlay {
     position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0, 0.4);
     pointer-events: none;
   }
   #selection {
     position: fixed;
-    border: 2px solid #8b5cf6;
-    background: rgba(139, 92, 246, 0.08);
+    border: 1.5px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
     display: none;
     pointer-events: none;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.3);
   }
   #info {
     position: fixed;
     display: none;
-    padding: 4px 8px;
-    background: rgba(0,0,0,0.8);
-    color: #e8e8ed;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 12px;
-    border-radius: 4px;
+    padding: 5px 9px;
+    background: rgba(15, 15, 18, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-size: 11.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    border-radius: 5px;
     pointer-events: none;
     white-space: nowrap;
+    letter-spacing: -0.005em;
   }
   #hint {
     position: fixed;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    color: rgba(255,255,255,0.7);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-size: 13px;
+    font-weight: 500;
     text-align: center;
     pointer-events: none;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    letter-spacing: -0.005em;
   }
-  #hint span { display: block; font-size: 11px; opacity: 0.6; margin-top: 6px; }
+  #hint span { display: block; font-size: 11px; font-weight: 400; opacity: 0.6; margin-top: 6px; }
 </style>
 </head>
 <body>

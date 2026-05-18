@@ -12,18 +12,27 @@ export function getChatHTML(filepath: string, history: ChatMessage[]): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
-    --bg: #1a1a24;
-    --bg-input: #111118;
-    --border: #2a2a3a;
-    --text: #e8e8ed;
-    --text-secondary: #8888a0;
-    --accent: #8b5cf6;
-    --msg-ai: #1e1e2e;
+    --bg: #111114;
+    --bg-input: #17171a;
+    --bg-elevated: #1c1c20;
+    --border: #26262b;
+    --border-strong: #34343c;
+    --text: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-subtle: rgba(59, 130, 246, 0.12);
+    --msg-ai: #17171a;
+    --success: #10b981;
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-size: 13px;
+    letter-spacing: -0.005em;
     background: var(--bg);
     color: var(--text);
     display: flex;
@@ -38,24 +47,31 @@ export function getChatHTML(filepath: string, history: ChatMessage[]): string {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 9px 12px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    background: var(--bg);
   }
 
-  .titlebar-left { font-size: 12px; font-weight: 600; }
+  .titlebar-left {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.005em;
+  }
   .titlebar-actions { -webkit-app-region: no-drag; }
 
   .btn-close {
     background: none; border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 16px;
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-size: 14px;
+    padding: 3px 7px;
+    border-radius: 5px;
     line-height: 1;
+    transition: background 0.12s ease, color 0.12s ease;
   }
-  .btn-close:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .btn-close:hover { background: rgba(255,255,255,0.06); color: var(--text); }
 
   .preview {
     border-bottom: 1px solid var(--border);
@@ -63,7 +79,8 @@ export function getChatHTML(filepath: string, history: ChatMessage[]): string {
     max-height: 140px;
     overflow: hidden;
     cursor: pointer;
-    background: #0a0a10;
+    background: #0a0a0c;
+    transition: max-height 0.2s ease;
   }
   .preview img { width: 100%; height: auto; display: block; object-fit: cover; max-height: 140px; }
   .preview.collapsed { max-height: 24px; }
@@ -72,7 +89,7 @@ export function getChatHTML(filepath: string, history: ChatMessage[]): string {
   .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 10px 12px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -80,35 +97,47 @@ export function getChatHTML(filepath: string, history: ChatMessage[]): string {
   }
 
   .msg {
-    max-width: 90%;
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-size: 12px;
+    max-width: 88%;
+    padding: 8px 11px;
+    border-radius: 10px;
+    font-size: 12.5px;
     line-height: 1.5;
     word-break: break-word;
   }
-  .msg.user { align-self: flex-end; background: var(--accent); color: white; }
-  .msg.ai   { align-self: flex-start; background: var(--msg-ai); border: 1px solid var(--border); }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: white;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  .msg.ai {
+    align-self: flex-start;
+    background: var(--msg-ai);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
 
   .msg-actions {
-    display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end;
+    display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end;
   }
   .btn-copy {
-    background: rgba(255,255,255,0.08);
-    border: none;
+    background: transparent;
+    border: 1px solid var(--border);
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10.5px;
+    font-weight: 500;
     padding: 3px 8px;
     border-radius: 4px;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
   }
-  .btn-copy:hover { background: rgba(255,255,255,0.15); color: var(--text); }
-  .btn-copy.copied { color: #34d399; }
+  .btn-copy:hover { background: rgba(255,255,255,0.04); color: var(--text); border-color: var(--border-strong); }
+  .btn-copy.copied { color: var(--success); border-color: var(--success); }
 
   .loading {
     align-self: flex-start;
     padding: 8px 12px;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     font-size: 12px;
   }
   .loading span { animation: blink 1.4s infinite both; }
@@ -118,41 +147,53 @@ export function getChatHTML(filepath: string, history: ChatMessage[]): string {
 
   .input-area {
     display: flex;
-    padding: 8px 12px;
+    padding: 10px 12px;
     border-top: 1px solid var(--border);
     flex-shrink: 0;
     -webkit-app-region: no-drag;
+    background: var(--bg);
+    gap: 6px;
   }
   .input-area input {
     flex: 1;
-    padding: 8px 12px;
+    padding: 7px 11px;
     background: var(--bg-input);
     border: 1px solid var(--border);
-    border-right: none;
-    border-radius: 6px 0 0 6px;
+    border-radius: 6px;
     color: var(--text);
-    font-size: 13px;
+    font-size: 12.5px;
     font-family: inherit;
     outline: none;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
-  .input-area input:focus { border-color: var(--accent); }
+  .input-area input::placeholder { color: var(--text-tertiary); }
+  .input-area input:hover { border-color: var(--border-strong); }
+  .input-area input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-subtle); }
 
   .btn-send {
-    padding: 8px 14px;
+    padding: 7px 14px;
     background: var(--accent);
     border: 1px solid var(--accent);
-    border-radius: 0 6px 6px 0;
+    border-radius: 6px;
     color: white;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12.5px;
+    font-weight: 500;
     cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
-  .btn-send:hover { background: #7c3aed; }
+  .btn-send:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; border: 2px solid transparent; }
 </style>
 </head>
 <body>
