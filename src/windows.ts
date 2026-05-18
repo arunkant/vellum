@@ -41,6 +41,12 @@ export function notifyAIResult(data: AIResultNotification) {
   }
 }
 
+export function notifyLocalLlmStatus(status: unknown) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('local-llm-status', status);
+  }
+}
+
 export function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 900,

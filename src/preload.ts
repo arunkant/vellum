@@ -17,9 +17,22 @@ export interface AIResult {
   model: string;
 }
 
+export type AIProvider = 'openrouter' | 'local';
+
 export interface AppConfig {
+  aiProvider: AIProvider;
   openrouterApiKey: string;
   aiModel: string;
+  localServerPort: number;
+}
+
+export interface LocalLlmStatus {
+  state: 'idle' | 'missing-binary' | 'missing-model' | 'downloading' | 'starting' | 'ready' | 'error';
+  message?: string;
+  downloadedBytes?: number;
+  totalBytes?: number;
+  modelPresent: boolean;
+  binaryPresent: boolean;
 }
 
 const api = {
@@ -57,6 +70,27 @@ const api = {
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
+
+  // Local llama-server
+  getLocalLlmStatus: (): Promise<LocalLlmStatus> =>
+    ipcRenderer.invoke('local-llm:status'),
+
+  downloadLocalModel: (): Promise<boolean> =>
+    ipcRenderer.invoke('local-llm:download'),
+
+  cancelLocalModelDownload: (): Promise<boolean> =>
+    ipcRenderer.invoke('local-llm:cancel-download'),
+
+  stopLocalServer: (): Promise<boolean> =>
+    ipcRenderer.invoke('local-llm:stop-server'),
+
+  onLocalLlmStatus: (callback: (status: LocalLlmStatus) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, status: LocalLlmStatus) => callback(status);
+    ipcRenderer.on('local-llm-status', handler);
+    return () => {
+      ipcRenderer.removeListener('local-llm-status', handler);
+    };
+  },
 
   // Events
   onScreenshotAdded: (callback: (screenshots: ScreenshotEntry[]) => void) => {

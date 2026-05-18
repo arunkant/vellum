@@ -1,11 +1,24 @@
 import path from 'node:path';
+import { getConfig } from '../config';
 import { aiResultsTbl, screenshotsTbl, type AIResult } from '../db';
+import { localLlamaProvider } from './local';
 import { openRouterProvider } from './openrouter';
 import { ANALYZE_PROMPT, chatPrompt, parseAnalyzeResponse } from './prompts';
 import type { VisionProvider } from './types';
 
-/** Single active provider. Swap here to support multiple providers. */
-const provider: VisionProvider = openRouterProvider;
+export { onStatusChange as onLocalLlmStatusChange, getStatus as getLocalLlmStatus,
+  downloadModel as downloadLocalModel, cancelDownload as cancelLocalDownload,
+  stop as stopLocalServer } from './llama-server';
+
+function activeProvider(): VisionProvider {
+  return getConfig().aiProvider === 'local' ? localLlamaProvider : openRouterProvider;
+}
+
+function unconfiguredMessage(): string {
+  return getConfig().aiProvider === 'local'
+    ? '⚠️ Local model not ready. Open Vellum settings and download the model.'
+    : '⚠️ No OpenRouter API key configured. Open Vellum settings to add your key.';
+}
 
 export async function analyzeScreenshot(filepath: string): Promise<AIResult | null> {
   const filename = path.basename(filepath);
@@ -13,6 +26,7 @@ export async function analyzeScreenshot(filepath: string): Promise<AIResult | nu
   const cached = aiResultsTbl.getByFilename(filename);
   if (cached) return cached;
 
+  const provider = activeProvider();
   if (!provider.isConfigured()) return null;
 
   try {
@@ -38,9 +52,8 @@ export async function analyzeScreenshot(filepath: string): Promise<AIResult | nu
 }
 
 export async function chatAboutScreenshot(filepath: string, userMessage: string): Promise<string | null> {
-  if (!provider.isConfigured()) {
-    return '⚠️ No OpenRouter API key configured. Open Vellum settings to add your key.';
-  }
+  const provider = activeProvider();
+  if (!provider.isConfigured()) return unconfiguredMessage();
 
   try {
     const res = await provider.complete({
@@ -50,6 +63,8 @@ export async function chatAboutScreenshot(filepath: string, userMessage: string)
     return res?.content || 'No response from AI.';
   } catch (err) {
     console.error('Chat failed:', err);
-    return '❌ Failed to reach OpenRouter. Check your connection.';
+    return getConfig().aiProvider === 'local'
+      ? '❌ Local model error. Check llama-server logs.'
+      : '❌ Failed to reach OpenRouter. Check your connection.';
   }
 }

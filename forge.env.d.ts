@@ -17,9 +17,22 @@ interface AIResult {
   model: string;
 }
 
+type AIProvider = 'openrouter' | 'local';
+
 interface AppConfig {
+  aiProvider: AIProvider;
   openrouterApiKey: string;
   aiModel: string;
+  localServerPort: number;
+}
+
+interface LocalLlmStatus {
+  state: 'idle' | 'missing-binary' | 'missing-model' | 'downloading' | 'starting' | 'ready' | 'error';
+  message?: string;
+  downloadedBytes?: number;
+  totalBytes?: number;
+  modelPresent: boolean;
+  binaryPresent: boolean;
 }
 
 interface VellumAPI {
@@ -34,6 +47,11 @@ interface VellumAPI {
   getAIResult: (filename: string) => Promise<AIResult | null>;
   openChatWindow: (filepath: string) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
+  getLocalLlmStatus: () => Promise<LocalLlmStatus>;
+  downloadLocalModel: () => Promise<boolean>;
+  cancelLocalModelDownload: () => Promise<boolean>;
+  stopLocalServer: () => Promise<boolean>;
+  onLocalLlmStatus: (callback: (status: LocalLlmStatus) => void) => () => void;
   onScreenshotAdded: (callback: (screenshots: ScreenshotEntry[]) => void) => () => void;
   onAIResultReady: (callback: (data: { filename: string; text: string; description: string; model: string }) => void) => () => void;
 }

@@ -93,3 +93,6 @@ out/
 
 # Intermediate iconset (input to iconutil — only icon.icns is committed)
 assets/icon.iconset/
+
+# Vendored llama-server binaries (downloaded by scripts/download-llama.mjs)
+vendor/llama/

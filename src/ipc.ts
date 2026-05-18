@@ -1,7 +1,13 @@
 import { ipcMain, shell } from 'electron';
 import path from 'node:path';
-import { getConfig, saveConfig } from './config';
-import { chatAboutScreenshot } from './ai';
+import { getConfig, saveConfig, type AIProvider } from './config';
+import {
+  chatAboutScreenshot,
+  downloadLocalModel,
+  cancelLocalDownload,
+  getLocalLlmStatus,
+  stopLocalServer,
+} from './ai';
 import { aiResultsTbl, chatMessagesTbl, screenshotsTbl } from './db';
 import {
   listScreenshots,
@@ -50,8 +56,23 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   ipcMain.handle('show-screenshots-folder', () => shell.openPath(screenshotsDir));
 
   ipcMain.handle('get-config', () => getConfig());
-  ipcMain.handle('save-config', (_e, config: Partial<{ openrouterApiKey: string; aiModel: string }>) =>
-    saveConfig(config));
+  ipcMain.handle(
+    'save-config',
+    (_e, config: Partial<{ aiProvider: AIProvider; openrouterApiKey: string; aiModel: string; localServerPort: number }>) => {
+      const prev = getConfig();
+      const next = saveConfig(config);
+      // Switching away from local → stop the running server to free RAM.
+      if (prev.aiProvider === 'local' && next.aiProvider !== 'local') {
+        stopLocalServer();
+      }
+      return next;
+    },
+  );
+
+  ipcMain.handle('local-llm:status', () => getLocalLlmStatus());
+  ipcMain.handle('local-llm:download', () => { downloadLocalModel(); return true; });
+  ipcMain.handle('local-llm:cancel-download', () => { cancelLocalDownload(); return true; });
+  ipcMain.handle('local-llm:stop-server', () => { stopLocalServer(); return true; });
 
   ipcMain.handle('get-ai-result', (_e, filename: string) => {
     const safe = resolveScreenshotPath(filename);

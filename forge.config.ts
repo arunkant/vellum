@@ -16,7 +16,9 @@ const config: ForgeConfig = {
     icon: path.resolve(__dirname, 'assets/icon'),
     // Ship the assets/ folder alongside the app so the tray icon (and any
     // other runtime-loaded resources) are resolvable from process.resourcesPath.
-    extraResource: ['./assets'],
+    // `vendor/llama` is populated by `npm run build:llama` and contains the
+    // platform-specific `llama-server` binary used for local AI inference.
+    extraResource: ['./assets', './vendor/llama'],
   },
   rebuildConfig: {},
   makers: [

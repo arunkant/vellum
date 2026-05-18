@@ -1,7 +1,7 @@
 import { app, BrowserWindow, globalShortcut, net, protocol } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { analyzeScreenshot } from './ai';
+import { analyzeScreenshot, onLocalLlmStatusChange, stopLocalServer } from './ai';
 import { captureFullScreen } from './capture';
 import { initDB } from './db';
 import { resolveScreenshotPath } from './screenshots';
@@ -13,6 +13,7 @@ import {
   closeChatWindow,
   openChatWindow,
   notifyAIResult,
+  notifyLocalLlmStatus,
   notifyScreenshotsUpdated,
   showMainWindow,
   setQuitting,
@@ -68,6 +69,7 @@ app.whenReady().then(() => {
   });
 
   setupIPC({ onScreenshotCaptured });
+  onLocalLlmStatusChange((s) => notifyLocalLlmStatus(s));
   createMainWindow();
   createTray({ onRegion: openRegionCapture, onFull: fullScreenAndProcess });
   registerShortcuts();
@@ -97,5 +99,6 @@ app.on('before-quit', () => setQuitting(true));
 
 app.on('will-quit', () => {
   closeChatWindow();
+  stopLocalServer();
   globalShortcut.unregisterAll();
 });

@@ -552,3 +552,75 @@ main {
   padding: 5px 10px;
   font-size: 11px;
 }
+
+/* Local-LLM settings panel */
+#openrouter-section,
+#local-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.local-llm-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.local-llm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.local-llm-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.local-llm-value {
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.local-llm-value.ok { color: #34d399; }
+.local-llm-value.warn { color: #fbbf24; }
+.local-llm-value.err { color: var(--danger); }
+
+.local-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.local-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.local-progress-bar > div {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.local-progress-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.local-llm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

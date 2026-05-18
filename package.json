@@ -13,7 +13,9 @@
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
     "typecheck": "tsc --noEmit",
-    "build:assets": "node scripts/build-assets.mjs"
+    "build:assets": "node scripts/build-assets.mjs",
+    "build:llama": "node scripts/download-llama.mjs",
+    "build:llama:all": "node scripts/download-llama.mjs --all"
   },
   "keywords": [],
   "author": {

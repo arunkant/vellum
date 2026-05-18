@@ -1,5 +1,16 @@
 import './index.css';
 
+type AIProvider = 'openrouter' | 'local';
+
+type LocalLlmStatus = {
+  state: 'idle' | 'missing-binary' | 'missing-model' | 'downloading' | 'starting' | 'ready' | 'error';
+  message?: string;
+  downloadedBytes?: number;
+  totalBytes?: number;
+  modelPresent: boolean;
+  binaryPresent: boolean;
+};
+
 type ScreenshotEntry = {
   name: string;
   path: string;
@@ -37,12 +48,78 @@ function filterScreenshots(query: string): ScreenshotEntry[] {
 
 // --- Settings panel ---
 const settingsOverlay = document.getElementById('settings-overlay')!;
+const providerSelect = document.getElementById('provider-select') as HTMLSelectElement;
+const openrouterSection = document.getElementById('openrouter-section')!;
+const localSection = document.getElementById('local-section')!;
 const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
 const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
 const saveSettingsBtn = document.getElementById('save-settings-btn')!;
 const settingsBtn = document.getElementById('settings-btn')!;
 const closeSettingsBtn = document.getElementById('close-settings-btn')!;
 const settingsStatus = document.getElementById('settings-status')!;
+
+// Local LLM controls
+const localModelState = document.getElementById('local-model-state')!;
+const localServerState = document.getElementById('local-server-state')!;
+const localProgressWrap = document.getElementById('local-progress-wrap')!;
+const localProgressFill = document.getElementById('local-progress-fill')!;
+const localProgressText = document.getElementById('local-progress-text')!;
+const downloadModelBtn = document.getElementById('download-model-btn') as HTMLButtonElement;
+const cancelDownloadBtn = document.getElementById('cancel-download-btn') as HTMLButtonElement;
+const stopServerBtn = document.getElementById('stop-server-btn') as HTMLButtonElement;
+
+// Approximate combined size of model + mmproj for the progress bar.
+const LOCAL_MODEL_TOTAL_BYTES = 5_400_000_000;
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function renderLocalLlmStatus(status: LocalLlmStatus) {
+  // Model row
+  if (status.modelPresent) {
+    localModelState.textContent = 'Downloaded ✓';
+    localModelState.className = 'local-llm-value ok';
+    downloadModelBtn.style.display = 'none';
+  } else {
+    localModelState.textContent = 'Not downloaded';
+    localModelState.className = 'local-llm-value warn';
+    downloadModelBtn.style.display = status.state === 'downloading' ? 'none' : 'inline-block';
+  }
+
+  // Server row
+  const serverLabels: Record<LocalLlmStatus['state'], { text: string; cls: string }> = {
+    'idle':            { text: 'Stopped',            cls: '' },
+    'missing-binary':  { text: 'Binary missing',     cls: 'err' },
+    'missing-model':   { text: 'Model not ready',    cls: 'warn' },
+    'downloading':     { text: 'Downloading model',  cls: 'warn' },
+    'starting':        { text: 'Starting…',          cls: 'warn' },
+    'ready':           { text: 'Running ✓',          cls: 'ok' },
+    'error':           { text: status.message || 'Error', cls: 'err' },
+  };
+  const label = serverLabels[status.state];
+  localServerState.textContent = label.text;
+  localServerState.className = `local-llm-value ${label.cls}`;
+
+  // Progress
+  if (status.state === 'downloading') {
+    localProgressWrap.style.display = 'flex';
+    cancelDownloadBtn.style.display = 'inline-block';
+    const done = status.downloadedBytes || 0;
+    const total = status.totalBytes || LOCAL_MODEL_TOTAL_BYTES;
+    const pct = Math.min(100, Math.round((done / total) * 100));
+    localProgressFill.style.width = `${pct}%`;
+    localProgressText.textContent = `${formatBytes(done)} / ~${formatBytes(total)} (${pct}%)`;
+  } else {
+    localProgressWrap.style.display = 'none';
+    cancelDownloadBtn.style.display = 'none';
+  }
+
+  stopServerBtn.style.display = status.state === 'ready' || status.state === 'starting' ? 'inline-block' : 'none';
+}
 
 function formatTime(ms: number): string {
   const date = new Date(ms);
@@ -204,11 +281,21 @@ async function refreshScreenshots() {
 }
 
 // --- Settings ---
+function applyProviderVisibility(provider: AIProvider) {
+  openrouterSection.style.display = provider === 'openrouter' ? 'flex' : 'none';
+  localSection.style.display = provider === 'local' ? 'flex' : 'none';
+}
+
 async function loadSettings() {
   const config = await window.vellum.getConfig();
+  providerSelect.value = config.aiProvider || 'openrouter';
   apiKeyInput.value = config.openrouterApiKey || '';
   modelSelect.value = config.aiModel || 'google/gemini-2.5-flash-lite';
+  applyProviderVisibility(config.aiProvider);
   updateSettingsHint(config.openrouterApiKey);
+
+  const status = await window.vellum.getLocalLlmStatus();
+  renderLocalLlmStatus(status);
 }
 
 function updateSettingsHint(hasKey: string) {
@@ -242,11 +329,30 @@ settingsOverlay.addEventListener('click', (e) => {
 saveSettingsBtn.addEventListener('click', async () => {
   const key = apiKeyInput.value.trim();
   const model = modelSelect.value;
-  await window.vellum.saveConfig({ openrouterApiKey: key, aiModel: model });
+  const aiProvider = providerSelect.value as AIProvider;
+  await window.vellum.saveConfig({ aiProvider, openrouterApiKey: key, aiModel: model });
   settingsStatus.textContent = '✅ Settings saved!';
   updateSettingsHint(key);
   setTimeout(() => { settingsStatus.textContent = ''; }, 2000);
 });
+
+providerSelect.addEventListener('change', () => {
+  applyProviderVisibility(providerSelect.value as AIProvider);
+});
+
+downloadModelBtn.addEventListener('click', () => {
+  window.vellum.downloadLocalModel();
+});
+
+cancelDownloadBtn.addEventListener('click', () => {
+  window.vellum.cancelLocalModelDownload();
+});
+
+stopServerBtn.addEventListener('click', () => {
+  window.vellum.stopLocalServer();
+});
+
+window.vellum.onLocalLlmStatus((status) => renderLocalLlmStatus(status));
 
 // Close settings with Escape; also clear search if search is focused
 document.addEventListener('keydown', (e) => {
