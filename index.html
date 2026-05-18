@@ -7,7 +7,8 @@
   <body>
     <div id="app">
       <header>
-        <h1>Vellum</h1>
+        <img src="assets/icon.png" alt="" class="app-logo" />
+        <input type="search" id="search-input" placeholder="Search screenshots…" autocomplete="off" />
         <div class="header-actions">
           <button id="capture-btn" class="btn btn-primary" title="Capture a region (⌘⇧1)">
             Capture region
@@ -23,10 +24,6 @@
           </button>
         </div>
       </header>
-
-      <div class="search-bar">
-        <input type="search" id="search-input" placeholder="Search screenshots…" autocomplete="off" />
-      </div>
 
       <main>
         <div id="empty-state" class="empty-state" style="display: none;"></div>
