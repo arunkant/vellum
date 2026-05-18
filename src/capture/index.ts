@@ -4,7 +4,6 @@ import { fullScreenSource, regionSource, type CaptureSource } from './sources';
 import type { Region } from './displays';
 
 export type { Region } from './displays';
-export { getTotalBounds } from './displays';
 
 /** Run a CaptureSource → save PNG → record in DB. Returns filepath or null. */
 async function runPipeline(source: CaptureSource): Promise<string | null> {

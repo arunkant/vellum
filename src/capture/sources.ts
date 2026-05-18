@@ -42,13 +42,19 @@ export function regionSource(region: Region): CaptureSource {
 export function fullScreenSource(): CaptureSource {
   return {
     async capture() {
-      const { width, height } = screen.getPrimaryDisplay().bounds;
+      // "Active" display = the one under the cursor. Matches native screenshot
+      // tool behavior when invoked via a global shortcut from a tray app.
+      const active = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const { width, height } = active.bounds;
+
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
         thumbnailSize: { width, height },
       });
       if (sources.length === 0) return null;
-      return sources[0].thumbnail;
+
+      const source = sources.find((s) => s.display_id === String(active.id)) ?? sources[0];
+      return source.thumbnail;
     },
   };
 }

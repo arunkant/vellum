@@ -7,20 +7,6 @@ export interface Region {
   height: number;
 }
 
-/** Bounding box covering every display, in logical points. */
-export function getTotalBounds(): Region {
-  const displays = screen.getAllDisplays();
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const d of displays) {
-    const { x, y, width, height } = d.bounds;
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x + width > maxX) maxX = x + width;
-    if (y + height > maxY) maxY = y + height;
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
 /** Pick the display with the most overlap with a given region. */
 export function pickBestDisplay(region: Region): Electron.Display {
   const displays = screen.getAllDisplays();

@@ -2,12 +2,11 @@ import { app, BrowserWindow, Menu, Tray, nativeImage, screen } from 'electron';
 import path from 'node:path';
 import { getOverlayHTML } from './overlay-html';
 import { getChatHTML } from './chat-html';
-import { getTotalBounds } from './capture';
 import { chatMessagesTbl } from './db';
 import { listScreenshots } from './screenshots';
 
 let mainWindow: BrowserWindow | null = null;
-let overlayWindow: BrowserWindow | null = null;
+let overlayWindows: BrowserWindow[] = [];
 let chatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -70,59 +69,64 @@ export function createMainWindow() {
 }
 
 export function openRegionCapture() {
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.focus();
+  if (overlayWindows.length > 0) {
+    overlayWindows[0].focus();
     return;
   }
 
-  const total = getTotalBounds();
-  overlayWindow = new BrowserWindow({
-    x: total.x,
-    y: total.y,
-    width: total.width,
-    height: total.height,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    resizable: false,
-    hasShadow: false,
-    fullscreenable: false,
-    focusable: true,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'overlay-preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      devTools: false,
-    },
-  });
+  // One overlay per display: a single BrowserWindow can't span multiple
+  // monitors on macOS, so we mirror the native screenshot tool and put a
+  // dedicated transparent window on each display.
+  for (const display of screen.getAllDisplays()) {
+    const { x, y, width, height } = display.bounds;
+    const win = new BrowserWindow({
+      x,
+      y,
+      width,
+      height,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      hasShadow: false,
+      fullscreenable: false,
+      focusable: true,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'overlay-preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        devTools: false,
+      },
+    });
 
-  // Set BEFORE showing so it appears on fullscreen spaces (macOS).
-  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    // Set BEFORE showing so it appears on fullscreen spaces (macOS).
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    win.setAlwaysOnTop(true, 'screen-saver');
 
-  overlayWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getOverlayHTML(total))}`);
+    win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getOverlayHTML(display.bounds))}`);
 
-  // Show + focus so the custom CSS cursor takes effect immediately. With
-  // showInactive() on macOS, transparent always-on-top windows often keep the
-  // previous app's cursor until they receive a mouse event.
-  overlayWindow.once('ready-to-show', () => {
-    overlayWindow?.show();
-    overlayWindow?.focus();
-  });
+    win.once('ready-to-show', () => {
+      if (!win.isDestroyed()) {
+        win.show();
+        win.focus();
+      }
+    });
 
-  overlayWindow.on('close', (e) => {
-    if (overlayWindow && !overlayWindow.isDestroyed()) e.preventDefault();
-  });
-  overlayWindow.on('closed', () => { overlayWindow = null; });
+    win.on('close', (e) => {
+      if (!win.isDestroyed()) e.preventDefault();
+    });
+
+    overlayWindows.push(win);
+  }
 }
 
 export function closeOverlay() {
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.destroy();
-    overlayWindow = null;
+  for (const win of overlayWindows) {
+    if (!win.isDestroyed()) win.destroy();
   }
+  overlayWindows = [];
 }
 
 export function openChatWindow(filepath: string) {

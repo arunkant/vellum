@@ -12,6 +12,7 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
 
 interface StoredConfig {
   openrouterApiKeyEnc?: string;
+  openrouterApiKey?: string;
   aiModel?: string;
 }
 
@@ -32,16 +33,31 @@ export function getConfig(): AppConfig {
       key = safeStorage.decryptString(Buffer.from(stored.openrouterApiKeyEnc, 'base64'));
     } catch { /* ignore */ }
   }
+  if (!key && stored.openrouterApiKey) {
+    key = stored.openrouterApiKey;
+  }
   return { openrouterApiKey: key, aiModel: stored.aiModel || DEFAULT_MODEL };
 }
 
 export function saveConfig(patch: Partial<AppConfig>): AppConfig {
   const merged: AppConfig = { ...getConfig(), ...patch };
   const onDisk: StoredConfig = { aiModel: merged.aiModel };
-  if (merged.openrouterApiKey && safeStorage.isEncryptionAvailable()) {
-    onDisk.openrouterApiKeyEnc = safeStorage
-      .encryptString(merged.openrouterApiKey)
-      .toString('base64');
+  if (merged.openrouterApiKey) {
+    let encrypted = false;
+    if (safeStorage.isEncryptionAvailable()) {
+      try {
+        onDisk.openrouterApiKeyEnc = safeStorage
+          .encryptString(merged.openrouterApiKey)
+          .toString('base64');
+        encrypted = true;
+      } catch (err) {
+        console.warn('safeStorage.encryptString failed; falling back to plaintext:', err);
+      }
+    }
+    if (!encrypted) {
+      console.warn('Storing OpenRouter key in plaintext at', configPath);
+      onDisk.openrouterApiKey = merged.openrouterApiKey;
+    }
   }
   try {
     fs.writeFileSync(configPath, JSON.stringify(onDisk, null, 2), 'utf-8');

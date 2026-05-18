@@ -1,8 +1,9 @@
 /**
  * HTML for the region capture overlay window. Loaded as a data URL into a
- * transparent fullscreen BrowserWindow with `overlay-preload.js`.
+ * transparent BrowserWindow with `overlay-preload.js`. One overlay per
+ * display; `displayBounds` is that display's geometry in logical points.
  */
-export function getOverlayHTML(totalBounds: { x: number; y: number; width: number; height: number }): string {
+export function getOverlayHTML(displayBounds: { x: number; y: number; width: number; height: number }): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -72,7 +73,7 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
   const info = document.getElementById('info');
   const hint = document.getElementById('hint');
 
-  const totalBounds = ${JSON.stringify(totalBounds)};
+  const displayBounds = ${JSON.stringify(displayBounds)};
 
   // Window-local CSS px (clientX/Y) for drawing; absolute screen logical
   // points (screenX/Y) for the captured region. We don't derive screen coords
@@ -88,8 +89,8 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
 
   function render() {
     if (!isDragging) return;
-    const cx = clamp(curLX, 0, totalBounds.width);
-    const cy = clamp(curLY, 0, totalBounds.height);
+    const cx = clamp(curLX, 0, displayBounds.width);
+    const cy = clamp(curLY, 0, displayBounds.height);
 
     const x = Math.min(startLX, cx);
     const y = Math.min(startLY, cy);
@@ -103,7 +104,7 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     selection.style.height = h + 'px';
 
     info.style.display = 'block';
-    info.style.left = Math.min(cx + 16, totalBounds.width - 120) + 'px';
+    info.style.left = Math.min(cx + 16, displayBounds.width - 120) + 'px';
     info.style.top = Math.max(cy - 30, 4) + 'px';
     info.textContent = Math.round(w) + ' × ' + Math.round(h) + ' px';
   }
@@ -130,8 +131,8 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     if (!isDragging) return;
     isDragging = false;
 
-    const endLX = clamp(e.clientX, 0, totalBounds.width);
-    const endLY = clamp(e.clientY, 0, totalBounds.height);
+    const endLX = clamp(e.clientX, 0, displayBounds.width);
+    const endLY = clamp(e.clientY, 0, displayBounds.height);
     const w = Math.abs(endLX - startLX);
     const h = Math.abs(endLY - startLY);
 
@@ -154,11 +155,11 @@ export function getOverlayHTML(totalBounds: { x: number; y: number; width: numbe
     }
   });
 
-  // Plain click without meaningful drag → full screen.
+  // Plain click without meaningful drag → capture this display.
   document.addEventListener('click', () => {
     setTimeout(() => {
       if (!isDragging && !cancelled && selection.style.display === 'none') {
-        api.selected({ x: totalBounds.x, y: totalBounds.y, width: totalBounds.width, height: totalBounds.height });
+        api.selected({ x: displayBounds.x, y: displayBounds.y, width: displayBounds.width, height: displayBounds.height });
       }
     }, 50);
   });
