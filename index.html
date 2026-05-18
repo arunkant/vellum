@@ -2,74 +2,46 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Vellum - AI Helper</title>
+    <title>Vellum</title>
   </head>
   <body>
     <div id="app">
       <header>
-        <div class="header-left">
-          <h1>📸 Vellum</h1>
-          <span class="subtitle">AI Helper — Screenshot Capture + Analysis</span>
-        </div>
-        <div class="header-right">
-          <button id="capture-btn" class="btn btn-primary">
-            <span class="icon">✂️</span> Capture Region (⌘⇧1)
+        <h1>Vellum</h1>
+        <div class="header-actions">
+          <button id="capture-btn" class="btn btn-primary" title="Capture a region (⌘⇧1)">
+            Capture region
           </button>
-          <button id="full-capture-btn" class="btn btn-secondary">
-            <span class="icon">🖥️</span> Full Screen (⌘⇧2)
+          <button id="full-capture-btn" class="btn btn-secondary" title="Capture full screen (⌘⇧2)">
+            Full screen
           </button>
-          <button id="folder-btn" class="btn btn-secondary">
-            <span class="icon">📁</span> Open Folder
-          </button>
-          <button id="settings-btn" class="btn btn-secondary" title="Settings">
-            <span class="icon">⚙️</span>
+          <button id="settings-btn" class="btn-icon btn-icon-header" title="Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+            </svg>
           </button>
         </div>
       </header>
 
-      <div class="status-bar">
-        <span id="status-text">
-          🟢 Ready — <kbd>⌘⇧1</kbd> drag-to-select region &nbsp;|&nbsp; <kbd>⌘⇧2</kbd> full screen
-        </span>
+      <div class="search-bar">
+        <input type="search" id="search-input" placeholder="Search screenshots…" autocomplete="off" />
       </div>
 
-      <div class="search-bar" id="search-bar">
-        <span class="search-icon">🔍</span>
-        <input
-          type="text"
-          id="search-input"
-          class="search-input"
-          placeholder="Search screenshots — text, descriptions, chats, filenames…"
-          autocomplete="off"
-        />
-        <button id="search-clear-btn" class="search-clear" title="Clear search" style="display: none;">✕</button>
-      </div>
-
-      <main id="screenshots-container">
-        <div id="empty-state" class="empty-state">
-          <div class="empty-icon">📸</div>
-          <h2>No screenshots yet</h2>
-          <p>
-            Press <kbd>⌘⇧1</kbd> to drag-select a region,<br/>
-            or <kbd>⌘⇧2</kbd> for a full-screen capture.<br/>
-            <small>The hotkeys work even when this window is hidden.</small>
-          </p>
-        </div>
-        <div id="no-matches-state" class="empty-state" style="display: none;">
-          <div class="empty-icon">🔍</div>
-          <h2>No matches found</h2>
-          <p>No screenshots match your search. Try different keywords.</p>
-        </div>
+      <main>
+        <div id="empty-state" class="empty-state" style="display: none;"></div>
         <div id="screenshots-grid" class="screenshots-grid" style="display: none;"></div>
       </main>
     </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <!-- Settings Overlay -->
     <div id="settings-overlay" class="settings-overlay">
       <div class="settings-panel">
         <div class="settings-header">
-          <h2>⚙️ Settings</h2>
-          <button id="close-settings-btn" class="btn-icon" title="Close">✕</button>
+          <h2>Settings</h2>
+          <button id="close-settings-btn" class="btn-icon" title="Close" aria-label="Close">✕</button>
         </div>
         <div class="settings-body">
           <div class="settings-field">
@@ -82,8 +54,8 @@
 
           <div id="openrouter-section">
             <div id="settings-hint" class="settings-hint">
-              💡 <strong>Add your OpenRouter API key</strong> to enable AI analysis of screenshots.<br/>
-              Get one at <a href="#" id="openrouter-link">openrouter.ai/keys</a>
+              Add your OpenRouter API key to enable AI analysis. Get one at
+              <a href="#" id="openrouter-link">openrouter.ai/keys</a>.
             </div>
             <div class="settings-field">
               <label for="api-key-input">OpenRouter API Key</label>
@@ -97,10 +69,8 @@
             <div class="settings-field">
               <label for="model-select">AI Model</label>
               <select id="model-select">
-                <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (fastest)</option>
-                <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                <option value="google/gemini-2.5-pro">Gemini 2.5 Pro (powerful)</option>
-                <option value="openai/gpt-4o">GPT-4o</option>
+                <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite — fastest</option>
+                <option value="google/gemini-2.5-pro">Gemini 2.5 Pro — most capable</option>
                 <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
               </select>
             </div>
@@ -108,8 +78,8 @@
 
           <div id="local-section" style="display: none;">
             <div class="settings-hint">
-              🖥️ Runs Gemma 4 E4B-it (Q4) on-device via a bundled llama-server. First use downloads
-              ~5 GB of model weights to your machine. No data leaves your computer.
+              Runs Gemma 4 E4B-it (Q4) on-device via a bundled llama-server. First use downloads
+              ~5 GB of weights. No data leaves your computer.
             </div>
             <div class="local-llm-status">
               <div class="local-llm-row">
@@ -133,8 +103,10 @@
           </div>
 
           <div class="settings-actions">
+            <button id="folder-btn" class="btn btn-secondary btn-sm">Show screenshots folder</button>
+            <span class="settings-actions-spacer"></span>
             <span id="settings-status" class="settings-status"></span>
-            <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
+            <button id="save-settings-btn" class="btn btn-primary">Save</button>
           </div>
         </div>
       </div>

@@ -23,13 +23,11 @@ type ScreenshotEntry = {
 };
 
 const emptyState = document.getElementById('empty-state')!;
-const noMatchesState = document.getElementById('no-matches-state')!;
 const grid = document.getElementById('screenshots-grid')!;
-const statusText = document.getElementById('status-text')!;
+const toastEl = document.getElementById('toast')!;
 
 // --- Search ---
 const searchInput = document.getElementById('search-input') as HTMLInputElement;
-const searchClearBtn = document.getElementById('search-clear-btn')!;
 let allScreenshots: ScreenshotEntry[] = [];
 let searchQuery = '';
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -68,7 +66,6 @@ const downloadModelBtn = document.getElementById('download-model-btn') as HTMLBu
 const cancelDownloadBtn = document.getElementById('cancel-download-btn') as HTMLButtonElement;
 const stopServerBtn = document.getElementById('stop-server-btn') as HTMLButtonElement;
 
-// Approximate combined size of model + mmproj for the progress bar.
 const LOCAL_MODEL_TOTAL_BYTES = 5_400_000_000;
 
 function formatBytes(n: number): string {
@@ -79,9 +76,8 @@ function formatBytes(n: number): string {
 }
 
 function renderLocalLlmStatus(status: LocalLlmStatus) {
-  // Model row
   if (status.modelPresent) {
-    localModelState.textContent = 'Downloaded ✓';
+    localModelState.textContent = 'Downloaded';
     localModelState.className = 'local-llm-value ok';
     downloadModelBtn.style.display = 'none';
   } else {
@@ -90,21 +86,19 @@ function renderLocalLlmStatus(status: LocalLlmStatus) {
     downloadModelBtn.style.display = status.state === 'downloading' ? 'none' : 'inline-block';
   }
 
-  // Server row
   const serverLabels: Record<LocalLlmStatus['state'], { text: string; cls: string }> = {
-    'idle':            { text: 'Stopped',            cls: '' },
-    'missing-binary':  { text: 'Binary missing',     cls: 'err' },
-    'missing-model':   { text: 'Model not ready',    cls: 'warn' },
-    'downloading':     { text: 'Downloading model',  cls: 'warn' },
-    'starting':        { text: 'Starting…',          cls: 'warn' },
-    'ready':           { text: 'Running ✓',          cls: 'ok' },
-    'error':           { text: status.message || 'Error', cls: 'err' },
+    'idle':           { text: 'Stopped',           cls: '' },
+    'missing-binary': { text: 'Binary missing',    cls: 'err' },
+    'missing-model':  { text: 'Model not ready',   cls: 'warn' },
+    'downloading':    { text: 'Downloading model', cls: 'warn' },
+    'starting':       { text: 'Starting…',         cls: 'warn' },
+    'ready':          { text: 'Running',           cls: 'ok' },
+    'error':          { text: status.message || 'Error', cls: 'err' },
   };
   const label = serverLabels[status.state];
   localServerState.textContent = label.text;
   localServerState.className = `local-llm-value ${label.cls}`;
 
-  // Progress
   if (status.state === 'downloading') {
     localProgressWrap.style.display = 'flex';
     cancelDownloadBtn.style.display = 'inline-block';
@@ -118,7 +112,8 @@ function renderLocalLlmStatus(status: LocalLlmStatus) {
     cancelDownloadBtn.style.display = 'none';
   }
 
-  stopServerBtn.style.display = status.state === 'ready' || status.state === 'starting' ? 'inline-block' : 'none';
+  stopServerBtn.style.display =
+    status.state === 'ready' || status.state === 'starting' ? 'inline-block' : 'none';
 }
 
 function formatTime(ms: number): string {
@@ -142,91 +137,153 @@ function formatTime(ms: number): string {
   });
 }
 
-function escapeHTML(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+// --- Toast ---
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+function showToast(msg: string, ms = 2500) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('visible');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), ms);
+}
+
+// --- Icon SVGs ---
+const ICON_CHAT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+const ICON_TRASH =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+
+function renderEmptyState() {
+  const isSearching = searchQuery.trim().length > 0;
+  if (isSearching) {
+    emptyState.innerHTML = `
+      <h2>No matches</h2>
+      <p>No screenshots match your search.</p>
+    `;
+  } else {
+    emptyState.innerHTML = `
+      <h2>No screenshots yet</h2>
+      <p>
+        Press <kbd>⌘⇧1</kbd> to drag-select a region,<br/>
+        or <kbd>⌘⇧2</kbd> for a full-screen capture.<br/>
+        <br/>
+        Hotkeys work even when this window is hidden.
+      </p>
+    `;
+  }
 }
 
 function renderScreenshots(screenshots: ScreenshotEntry[]) {
   const isSearching = searchQuery.trim().length > 0;
+  const noContent = allScreenshots.length === 0 || (isSearching && screenshots.length === 0);
 
-  // No screenshots at all
-  if (allScreenshots.length === 0) {
+  if (noContent) {
+    renderEmptyState();
     emptyState.style.display = 'flex';
-    noMatchesState.style.display = 'none';
-    grid.style.display = 'none';
-    return;
-  }
-
-  // Search returned no results
-  if (isSearching && screenshots.length === 0) {
-    emptyState.style.display = 'none';
-    noMatchesState.style.display = 'flex';
     grid.style.display = 'none';
     return;
   }
 
   emptyState.style.display = 'none';
-  noMatchesState.style.display = 'none';
   grid.style.display = 'grid';
   grid.innerHTML = '';
 
   for (const shot of screenshots) {
-    const card = document.createElement('div');
-    card.className = 'screenshot-card';
-    card.dataset.filename = shot.name;
-
-    const hasAI = shot.aiText || shot.aiDescription;
-    const aiContent = shot.aiDescription || shot.aiText || '';
-
-    let aiSection = '';
-    if (hasAI) {
-      aiSection = `
-        <div class="card-ai">
-          <div class="ai-desc">🤖 ${escapeHTML(aiContent.slice(0, 200))}${aiContent.length > 200 ? '…' : ''}</div>
-          ${shot.aiModel ? `<div class="ai-model-badge">${escapeHTML(shot.aiModel.split('/').pop() || shot.aiModel)}</div>` : ''}
-        </div>
-      `;
-    }
-
-    card.innerHTML = `
-      <div class="card-preview">
-        <img
-          src="vellum-file://${encodeURI(shot.path)}"
-          alt="${shot.name}"
-          loading="lazy"
-          onerror="this.parentElement.innerHTML='<div class=\\'image-error\\'>🖼️<br/>Preview unavailable</div>'"
-        />
-      </div>
-      <div class="card-info">
-        <span class="card-time" title="${new Date(shot.time).toLocaleString()}">${formatTime(shot.time)}</span>
-        <span class="card-name" title="${shot.name}">${shot.name}${shot.hasChat ? ' 💬' : ''}</span>
-      </div>
-      ${aiSection}
-      <div class="card-actions">
-        <button class="btn-icon" title="Chat about this screenshot" data-action="open-chat" data-filename="${shot.name}" data-path="${shot.path}">💬</button>
-        ${hasAI ? '<button class="btn-icon" title="View AI details" data-action="view-ai" data-filename="' + shot.name + '">🔍</button>' : ''}
-        <button class="btn-icon" title="Open" data-action="open" data-path="${shot.path}">👁️</button>
-        <button class="btn-icon" title="Delete" data-action="delete" data-path="${shot.path}">🗑️</button>
-      </div>
-    `;
-
-    // Click on card preview to open the image
-    const preview = card.querySelector('.card-preview')!;
-    preview.addEventListener('click', () => {
-      window.vellum.openScreenshot(shot.path);
-    });
-
-    grid.appendChild(card);
+    grid.appendChild(buildCard(shot));
   }
 }
 
-function showAIDetail(filename: string) {
-  const card = document.querySelector(`[data-filename="${CSS.escape(filename)}"]`);
-  if (!card) return;
+function buildCard(shot: ScreenshotEntry): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'screenshot-card';
+  card.dataset.filename = shot.name;
 
-  // Remove any existing detail panel
+  // Preview
+  const preview = document.createElement('div');
+  preview.className = 'card-preview';
+  const img = document.createElement('img');
+  img.src = `vellum-file://${encodeURI(shot.path)}`;
+  img.alt = shot.name;
+  img.loading = 'lazy';
+  img.addEventListener('error', () => {
+    preview.innerHTML = '<div class="image-error">Preview unavailable</div>';
+  });
+  preview.appendChild(img);
+  preview.addEventListener('click', () => {
+    window.vellum.openScreenshot(shot.path);
+  });
+  card.appendChild(preview);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  const time = document.createElement('span');
+  time.className = 'card-time';
+  time.title = `${new Date(shot.time).toLocaleString()}\n${shot.name}`;
+  time.textContent = formatTime(shot.time);
+  if (shot.hasChat) {
+    const dot = document.createElement('span');
+    dot.className = 'chat-dot';
+    dot.textContent = '●';
+    dot.title = 'Has chat';
+    time.appendChild(dot);
+  }
+  body.appendChild(time);
+
+  const aiContent = shot.aiDescription || shot.aiText || '';
+  if (aiContent) {
+    const ai = document.createElement('div');
+    ai.className = 'card-ai';
+    ai.title = 'Click to expand';
+    ai.textContent = aiContent.length > 140 ? aiContent.slice(0, 140) + '…' : aiContent;
+    ai.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleAIDetail(card, shot.name);
+    });
+    body.appendChild(ai);
+  }
+  card.appendChild(body);
+
+  // Floating actions (hover-revealed)
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+
+  const chatBtn = document.createElement('button');
+  chatBtn.className = 'btn-icon';
+  chatBtn.title = 'Chat about this screenshot';
+  chatBtn.setAttribute('aria-label', 'Chat');
+  chatBtn.dataset.action = 'open-chat';
+  chatBtn.innerHTML = ICON_CHAT;
+  actions.appendChild(chatBtn);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-icon';
+  delBtn.title = 'Delete';
+  delBtn.setAttribute('aria-label', 'Delete');
+  delBtn.dataset.action = 'delete';
+  delBtn.innerHTML = ICON_TRASH;
+  actions.appendChild(delBtn);
+
+  card.appendChild(actions);
+
+  card.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+    if (!btn) return;
+    e.stopPropagation();
+    const action = btn.dataset.action;
+    if (action === 'delete') {
+      allScreenshots = await window.vellum.deleteScreenshot(shot.path);
+      renderScreenshots(filterScreenshots(searchQuery));
+      showToast('Screenshot deleted');
+    } else if (action === 'open-chat') {
+      window.vellum.openChatWindow(shot.path);
+    }
+  });
+
+  return card;
+}
+
+function toggleAIDetail(card: HTMLElement, filename: string) {
   const existing = card.querySelector('.ai-detail-panel');
   if (existing) {
     existing.remove();
@@ -235,33 +292,28 @@ function showAIDetail(filename: string) {
 
   window.vellum.getAIResult(filename).then((result) => {
     if (!result) return;
+    const content = result.description || result.extractedText || '';
+    const modelShort = result.model.split('/').pop() || result.model;
 
     const panel = document.createElement('div');
     panel.className = 'ai-detail-panel';
 
-    const content = result.description || result.extractedText || '';
+    const header = document.createElement('div');
+    header.className = 'ai-detail-header';
+    header.innerHTML =
+      '<span>AI Analysis</span>' +
+      `<span class="ai-model-badge"></span>`;
+    header.querySelector('.ai-model-badge')!.textContent = modelShort;
+    panel.appendChild(header);
 
-    panel.innerHTML = `
-      <div class="ai-detail-header">
-        <span>🤖 AI Analysis</span>
-        <span class="ai-model-badge">${escapeHTML(result.model.split('/').pop() || result.model)}</span>
-      </div>
-      <div class="ai-detail-section">
-        <div class="ai-detail-content">${escapeHTML(content)}</div>
-      </div>
-      <button class="btn btn-secondary btn-sm ai-detail-close">Close</button>
-    `;
+    const body = document.createElement('div');
+    body.className = 'ai-detail-content';
+    body.textContent = content;
+    panel.appendChild(body);
 
-    panel.querySelector('.ai-detail-close')!.addEventListener('click', () => panel.remove());
+    panel.addEventListener('click', (e) => e.stopPropagation());
     card.appendChild(panel);
   });
-}
-
-function setStatus(msg: string) {
-  statusText.textContent = msg;
-  setTimeout(() => {
-    statusText.textContent = '🟢 Ready — ⌘⇧1 drag region | ⌘⇧2 full screen';
-  }, 3000);
 }
 
 async function refreshScreenshots() {
@@ -279,10 +331,20 @@ function applyProviderVisibility(provider: AIProvider) {
   localSection.style.display = provider === 'local' ? 'flex' : 'none';
 }
 
+function ensureModelOption(value: string) {
+  if (!value) return;
+  if ([...modelSelect.options].some((o) => o.value === value)) return;
+  const opt = document.createElement('option');
+  opt.value = value;
+  opt.textContent = value;
+  modelSelect.appendChild(opt);
+}
+
 async function loadSettings() {
   const config = await window.vellum.getConfig();
   providerSelect.value = config.aiProvider || 'openrouter';
   apiKeyInput.value = config.openrouterApiKey || '';
+  ensureModelOption(config.aiModel || 'google/gemini-2.5-flash-lite');
   modelSelect.value = config.aiModel || 'google/gemini-2.5-flash-lite';
   applyProviderVisibility(config.aiProvider);
   updateSettingsHint(config.openrouterApiKey);
@@ -307,7 +369,6 @@ closeSettingsBtn.addEventListener('click', () => {
   settingsOverlay.style.display = 'none';
 });
 
-// OpenRouter link opens in default browser, not in-app
 document.getElementById('openrouter-link')!.addEventListener('click', (e) => {
   e.preventDefault();
   window.vellum.openExternal('https://openrouter.ai/keys');
@@ -324,7 +385,7 @@ saveSettingsBtn.addEventListener('click', async () => {
   const model = modelSelect.value;
   const aiProvider = providerSelect.value as AIProvider;
   await window.vellum.saveConfig({ aiProvider, openrouterApiKey: key, aiModel: model });
-  settingsStatus.textContent = '✅ Settings saved!';
+  settingsStatus.textContent = 'Saved';
   updateSettingsHint(key);
   setTimeout(() => { settingsStatus.textContent = ''; }, 2000);
 });
@@ -345,9 +406,13 @@ stopServerBtn.addEventListener('click', () => {
   window.vellum.stopLocalServer();
 });
 
+document.getElementById('folder-btn')!.addEventListener('click', () => {
+  window.vellum.showScreenshotsFolder();
+});
+
 window.vellum.onLocalLlmStatus((status) => renderLocalLlmStatus(status));
 
-// Close settings with Escape; also clear search if search is focused
+// Esc closes settings, or clears search when search has focus
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (settingsOverlay.style.display === 'flex') {
@@ -355,7 +420,6 @@ document.addEventListener('keydown', (e) => {
     } else if (document.activeElement === searchInput && searchQuery) {
       searchInput.value = '';
       searchQuery = '';
-      searchClearBtn.style.display = 'none';
       renderScreenshots(filterScreenshots(''));
     }
   }
@@ -364,85 +428,39 @@ document.addEventListener('keydown', (e) => {
 async function init() {
   await refreshScreenshots();
 
-  // Single delegated click handler for all card actions
-  grid.addEventListener('click', async (e) => {
-    const target = e.target as HTMLElement;
-    const btn = target.closest('[data-action]') as HTMLElement | null;
-    if (!btn) return;
-
-    const action = btn.dataset.action;
-    const filepath = btn.dataset.path;
-    const filename = btn.dataset.filename;
-
-    if (action === 'open' && filepath) {
-      await window.vellum.openScreenshot(filepath);
-    } else if (action === 'delete' && filepath) {
-      allScreenshots = await window.vellum.deleteScreenshot(filepath);
-      renderScreenshots(filterScreenshots(searchQuery));
-      setStatus('🗑️ Screenshot deleted');
-    } else if (action === 'view-ai' && filename) {
-      showAIDetail(filename);
-    } else if (action === 'open-chat' && filepath) {
-      window.vellum.openChatWindow(filepath);
-    }
-  });
-
-  // Listen for new screenshots
   window.vellum.onScreenshotAdded((screenshots) => {
     allScreenshots = screenshots;
     renderScreenshots(filterScreenshots(searchQuery));
-    setStatus('📸 Screenshot captured!');
+    showToast('Screenshot captured');
   });
 
-  // Listen for AI results coming in
   window.vellum.onAIResultReady((data) => {
-    setStatus(`🤖 AI analysis complete for ${data.filename}`);
-    // Refresh to show updated data
+    showToast(`AI analysis ready: ${data.filename}`);
     refreshScreenshots();
   });
 
-  // Region capture button
   document.getElementById('capture-btn')!.addEventListener('click', async () => {
-    setStatus('✂️ Drag to select a region on screen...');
+    showToast('Drag to select a region…');
     await window.vellum.captureRegion();
   });
 
-  // Full-screen capture button
   document.getElementById('full-capture-btn')!.addEventListener('click', async () => {
-    setStatus('🖥️ Capturing full screen...');
+    showToast('Capturing full screen…');
     allScreenshots = await window.vellum.captureFullScreen();
     renderScreenshots(filterScreenshots(searchQuery));
-    setStatus('📸 Full screen captured!');
+    showToast('Full screen captured');
   });
 
-  // Open folder button
-  document.getElementById('folder-btn')!.addEventListener('click', () => {
-    window.vellum.showScreenshotsFolder();
-  });
-
-  // Search input with debounce
+  // Native search input fires 'input' for typing and clearing (X button)
   searchInput.addEventListener('input', () => {
     searchQuery = searchInput.value;
-    searchClearBtn.style.display = searchQuery ? 'block' : 'none';
-
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
       renderScreenshots(filterScreenshots(searchQuery));
     }, 200);
   });
 
-  // Clear search
-  searchClearBtn.addEventListener('click', () => {
-    searchInput.value = '';
-    searchQuery = '';
-    searchClearBtn.style.display = 'none';
-    renderScreenshots(filterScreenshots(''));
-    searchInput.focus();
-  });
-
-  // In-window keyboard shortcuts
   document.addEventListener('keydown', async (e) => {
-    // Cmd+F / Ctrl+F → focus search
     if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
       e.preventDefault();
       searchInput.focus();
@@ -452,14 +470,14 @@ async function init() {
 
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
       e.preventDefault();
-      setStatus('✂️ Drag to select a region on screen...');
+      showToast('Drag to select a region…');
       await window.vellum.captureRegion();
     } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '2') {
       e.preventDefault();
-      setStatus('🖥️ Capturing full screen...');
+      showToast('Capturing full screen…');
       allScreenshots = await window.vellum.captureFullScreen();
       renderScreenshots(filterScreenshots(searchQuery));
-      setStatus('📸 Full screen captured!');
+      showToast('Full screen captured');
     }
   });
 }
