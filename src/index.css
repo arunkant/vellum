@@ -54,6 +54,7 @@ header {
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .header-actions {
