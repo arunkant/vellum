@@ -30,7 +30,7 @@ export async function analyzeScreenshot(filepath: string): Promise<AIResult | nu
   if (!provider.isConfigured()) return null;
 
   try {
-    const res = await provider.complete({ imagePath: filepath, prompt: ANALYZE_PROMPT });
+    const res = await provider.complete({ imagePath: filepath, prompt: ANALYZE_PROMPT, maxTokens: 600 });
     if (!res) return null;
 
     const parsed = parseAnalyzeResponse(res.content);

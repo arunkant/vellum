@@ -35,7 +35,7 @@ export const localLlamaProvider: VisionProvider = {
             { type: 'image_url', image_url: { url: imageToDataUrl(req.imagePath) } },
           ],
         }],
-        max_tokens: 2000,
+        max_tokens: req.maxTokens ?? 2000,
         temperature: 0.2,
       }),
     });

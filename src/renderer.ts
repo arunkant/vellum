@@ -178,13 +178,13 @@ function renderScreenshots(screenshots: ScreenshotEntry[]) {
     card.dataset.filename = shot.name;
 
     const hasAI = shot.aiText || shot.aiDescription;
+    const aiContent = shot.aiDescription || shot.aiText || '';
 
     let aiSection = '';
     if (hasAI) {
       aiSection = `
         <div class="card-ai">
-          ${shot.aiDescription ? `<div class="ai-desc">🤖 ${escapeHTML(shot.aiDescription.slice(0, 120))}${shot.aiDescription.length > 120 ? '...' : ''}</div>` : ''}
-          ${shot.aiText ? `<div class="ai-text-preview">📝 <span>${escapeHTML(shot.aiText.slice(0, 80))}${shot.aiText.length > 80 ? '...' : ''}</span></div>` : ''}
+          <div class="ai-desc">🤖 ${escapeHTML(aiContent.slice(0, 200))}${aiContent.length > 200 ? '…' : ''}</div>
           ${shot.aiModel ? `<div class="ai-model-badge">${escapeHTML(shot.aiModel.split('/').pop() || shot.aiModel)}</div>` : ''}
         </div>
       `;
@@ -239,23 +239,16 @@ function showAIDetail(filename: string) {
     const panel = document.createElement('div');
     panel.className = 'ai-detail-panel';
 
+    const content = result.description || result.extractedText || '';
+
     panel.innerHTML = `
       <div class="ai-detail-header">
         <span>🤖 AI Analysis</span>
         <span class="ai-model-badge">${escapeHTML(result.model.split('/').pop() || result.model)}</span>
       </div>
-      ${result.description ? `
-        <div class="ai-detail-section">
-          <div class="ai-detail-label">📋 Description</div>
-          <div class="ai-detail-content">${escapeHTML(result.description)}</div>
-        </div>
-      ` : ''}
-      ${result.extractedText ? `
-        <div class="ai-detail-section">
-          <div class="ai-detail-label">📝 Extracted Text</div>
-          <pre class="ai-detail-text">${escapeHTML(result.extractedText)}</pre>
-        </div>
-      ` : ''}
+      <div class="ai-detail-section">
+        <div class="ai-detail-content">${escapeHTML(content)}</div>
+      </div>
       <button class="btn btn-secondary btn-sm ai-detail-close">Close</button>
     `;
 

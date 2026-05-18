@@ -4,6 +4,8 @@ export interface VisionRequest {
   imagePath: string;
   /** The user/system prompt to send alongside the image. */
   prompt: string;
+  /** Optional cap on response length. Providers default to 2000 if omitted. */
+  maxTokens?: number;
 }
 
 export interface VisionResponse {
