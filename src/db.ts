@@ -57,6 +57,15 @@ function open(): DatabaseSync {
       FOREIGN KEY (screenshot_id) REFERENCES screenshots(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_chat_screenshot ON chat_messages(screenshot_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS screenshot_tags (
+      screenshot_id INTEGER NOT NULL,
+      tag TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (screenshot_id, tag),
+      FOREIGN KEY (screenshot_id) REFERENCES screenshots(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_tags_tag ON screenshot_tags(tag);
   `);
   return _db;
 }
@@ -113,6 +122,29 @@ export const aiResultsTbl = {
       WHERE s.filename = ?
     `).get(filename) as unknown as AIResult | undefined;
     return row ?? null;
+  },
+};
+
+export const tagsTbl = {
+  add(screenshotId: number, tag: string): void {
+    open().prepare(
+      'INSERT OR IGNORE INTO screenshot_tags (screenshot_id, tag, created_at) VALUES (?, ?, ?)'
+    ).run(screenshotId, tag, Date.now());
+  },
+  remove(screenshotId: number, tag: string): void {
+    open().prepare(
+      'DELETE FROM screenshot_tags WHERE screenshot_id = ? AND tag = ?'
+    ).run(screenshotId, tag);
+  },
+  listByFilename(filename: string): string[] {
+    const rows = open().prepare(`
+      SELECT t.tag as tag
+      FROM screenshot_tags t
+      JOIN screenshots s ON s.id = t.screenshot_id
+      WHERE s.filename = ?
+      ORDER BY t.created_at ASC
+    `).all(filename) as unknown as { tag: string }[];
+    return rows.map((r) => r.tag);
   },
 };
 
