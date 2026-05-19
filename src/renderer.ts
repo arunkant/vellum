@@ -208,9 +208,6 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
     preview.innerHTML = '<div class="image-error">Preview unavailable</div>';
   });
   preview.appendChild(img);
-  preview.addEventListener('click', () => {
-    window.vellum.openScreenshot(shot.path);
-  });
   card.appendChild(preview);
 
   // Body
@@ -234,12 +231,7 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
   if (aiContent) {
     const ai = document.createElement('div');
     ai.className = 'card-ai';
-    ai.title = 'Click to expand';
-    ai.textContent = aiContent.length > 140 ? aiContent.slice(0, 140) + '…' : aiContent;
-    ai.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleAIDetail(card, shot.name);
-    });
+    ai.textContent = aiContent;
     body.appendChild(ai);
   }
   card.appendChild(body);
@@ -268,52 +260,22 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
 
   card.addEventListener('click', async (e) => {
     const btn = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
-    if (!btn) return;
-    e.stopPropagation();
-    const action = btn.dataset.action;
-    if (action === 'delete') {
-      allScreenshots = await window.vellum.deleteScreenshot(shot.path);
-      renderScreenshots(filterScreenshots(searchQuery));
-      showToast('Screenshot deleted');
-    } else if (action === 'open-chat') {
-      window.vellum.openChatWindow(shot.path);
+    if (btn) {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      if (action === 'delete') {
+        allScreenshots = await window.vellum.deleteScreenshot(shot.path);
+        renderScreenshots(filterScreenshots(searchQuery));
+        showToast('Screenshot deleted');
+      } else if (action === 'open-chat') {
+        window.vellum.openChatWindow(shot.path);
+      }
+      return;
     }
+    openDetail(shot);
   });
 
   return card;
-}
-
-function toggleAIDetail(card: HTMLElement, filename: string) {
-  const existing = card.querySelector('.ai-detail-panel');
-  if (existing) {
-    existing.remove();
-    return;
-  }
-
-  window.vellum.getAIResult(filename).then((result) => {
-    if (!result) return;
-    const content = result.description || result.extractedText || '';
-    const modelShort = result.model.split('/').pop() || result.model;
-
-    const panel = document.createElement('div');
-    panel.className = 'ai-detail-panel';
-
-    const header = document.createElement('div');
-    header.className = 'ai-detail-header';
-    header.innerHTML =
-      '<span>AI Analysis</span>' +
-      `<span class="ai-model-badge"></span>`;
-    header.querySelector('.ai-model-badge')!.textContent = modelShort;
-    panel.appendChild(header);
-
-    const body = document.createElement('div');
-    body.className = 'ai-detail-content';
-    body.textContent = content;
-    panel.appendChild(body);
-
-    panel.addEventListener('click', (e) => e.stopPropagation());
-    card.appendChild(panel);
-  });
 }
 
 async function refreshScreenshots() {
@@ -324,6 +286,89 @@ async function refreshScreenshots() {
     console.error('Failed to load screenshots:', err);
   }
 }
+
+// --- Detail panel ---
+const detailBackdrop = document.getElementById('detail-backdrop')!;
+const detailPanel = document.getElementById('detail-panel')!;
+const detailTitleEl = document.getElementById('detail-title')!;
+const detailImageEl = document.getElementById('detail-image') as HTMLImageElement;
+const detailTimeEl = document.getElementById('detail-time')!;
+const detailModelEl = document.getElementById('detail-model')!;
+const detailAiEl = document.getElementById('detail-ai')!;
+const detailCloseBtn = document.getElementById('detail-close')!;
+const detailChatBtn = document.getElementById('detail-chat')!;
+const detailOpenBtn = document.getElementById('detail-open')!;
+const detailDeleteBtn = document.getElementById('detail-delete')!;
+
+let currentDetail: ScreenshotEntry | null = null;
+
+function openDetail(shot: ScreenshotEntry) {
+  currentDetail = shot;
+  detailTitleEl.textContent = shot.name;
+  detailImageEl.src = `vellum-file://${encodeURI(shot.path)}`;
+  detailImageEl.alt = shot.name;
+  detailTimeEl.textContent = new Date(shot.time).toLocaleString();
+
+  if (shot.aiModel) {
+    detailModelEl.textContent = shot.aiModel.split('/').pop() || shot.aiModel;
+    detailModelEl.style.display = 'inline-block';
+  } else {
+    detailModelEl.textContent = '';
+    detailModelEl.style.display = 'none';
+  }
+
+  const aiContent = shot.aiDescription || shot.aiText || '';
+  if (aiContent) {
+    detailAiEl.textContent = aiContent;
+    detailAiEl.classList.remove('empty');
+  } else {
+    detailAiEl.textContent = 'No AI analysis yet.';
+    detailAiEl.classList.add('empty');
+  }
+
+  detailBackdrop.classList.add('open');
+  detailPanel.classList.add('open');
+  detailPanel.setAttribute('aria-hidden', 'false');
+}
+
+function closeDetail() {
+  currentDetail = null;
+  detailBackdrop.classList.remove('open');
+  detailPanel.classList.remove('open');
+  detailPanel.setAttribute('aria-hidden', 'true');
+}
+
+detailCloseBtn.addEventListener('click', closeDetail);
+detailBackdrop.addEventListener('click', closeDetail);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && detailPanel.classList.contains('open')) {
+    closeDetail();
+  }
+});
+
+detailChatBtn.addEventListener('click', () => {
+  if (!currentDetail) return;
+  window.vellum.openChatWindow(currentDetail.path);
+});
+
+detailOpenBtn.addEventListener('click', () => {
+  if (!currentDetail) return;
+  window.vellum.openScreenshot(currentDetail.path);
+});
+
+detailImageEl.addEventListener('click', () => {
+  if (!currentDetail) return;
+  window.vellum.openScreenshot(currentDetail.path);
+});
+
+detailDeleteBtn.addEventListener('click', async () => {
+  if (!currentDetail) return;
+  const path = currentDetail.path;
+  closeDetail();
+  allScreenshots = await window.vellum.deleteScreenshot(path);
+  renderScreenshots(filterScreenshots(searchQuery));
+  showToast('Screenshot deleted');
+});
 
 // --- Settings ---
 function applyProviderVisibility(provider: AIProvider) {
@@ -445,9 +490,13 @@ async function init() {
     showToast('Screenshot captured');
   });
 
-  window.vellum.onAIResultReady((data) => {
+  window.vellum.onAIResultReady(async (data) => {
     showToast(`AI analysis ready: ${data.filename}`);
-    refreshScreenshots();
+    await refreshScreenshots();
+    if (currentDetail && currentDetail.name === data.filename) {
+      const updated = allScreenshots.find((s) => s.name === data.filename);
+      if (updated) openDetail(updated);
+    }
   });
 
   document.getElementById('capture-btn')!.addEventListener('click', async () => {
