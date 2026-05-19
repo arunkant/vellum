@@ -175,7 +175,12 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
     const text = format === 'jira'
       ? formatForJira(filename, ai?.description ?? '', tags)
       : formatForSlack(filename, ai?.description ?? '', tags);
-    clipboard.writeText(text);
+    const img = nativeImage.createFromPath(safe);
+    if (!img.isEmpty()) {
+      clipboard.write({ text, image: img });
+    } else {
+      clipboard.writeText(text);
+    }
     return true;
   });
 
