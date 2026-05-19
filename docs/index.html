@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vellum — AI screenshot helper for macOS</title>
+<meta name="description" content="A tray-resident macOS screenshot helper. Capture, extract text, and chat about what's on screen using an AI vision model." />
+<link rel="icon" type="image/png" href="icon.png" />
+<style>
+  :root {
+    --bg-primary: #09090b;
+    --bg-secondary: #111114;
+    --bg-card: #17171a;
+    --bg-elevated: #1c1c20;
+    --bg-hover: #202024;
+    --border: #26262b;
+    --border-strong: #34343c;
+    --text-primary: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --radius: 8px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 24px 96px;
+  }
+  header { text-align: center; margin-bottom: 56px; }
+  header img.logo { width: 88px; height: 88px; border-radius: 20px; margin-bottom: 20px; }
+  h1 { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 10px; }
+  .tagline { color: var(--text-secondary); font-size: 17px; max-width: 520px; margin: 0 auto; }
+  h2 {
+    font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin: 48px 0 14px;
+  }
+  .install {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 56px 18px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px;
+    color: var(--text-primary);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .install code { color: var(--text-primary); }
+  .install .prompt { color: var(--text-tertiary); user-select: none; margin-right: 8px; }
+  .copy {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .copy:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-strong); }
+  .copy.copied { color: var(--accent); border-color: var(--accent); }
+  ul.features { list-style: none; padding: 0; margin: 0; }
+  ul.features li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  ul.features li:last-child { border-bottom: none; }
+  ul.features li strong { color: var(--text-primary); font-weight: 600; }
+  .note {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+  .note strong { color: var(--text-primary); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+  footer {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  kbd {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--text-primary);
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img class="logo" src="icon.png" alt="Vellum logo" onerror="this.style.display='none'" />
+    <h1>Vellum</h1>
+    <p class="tagline">A tray-resident macOS screenshot helper. Capture a region or the full screen, let AI extract the text and describe what's there, then chat about it.</p>
+  </header>
+
+  <h2>Install</h2>
+  <div class="install">
+    <button class="copy" id="copyBtn" type="button">Copy</button>
+    <code><span class="prompt">$</span><span id="cmd">curl -fsSL https://arunkant.github.io/vellum/install.sh | bash</span></code>
+  </div>
+
+  <h2>Requirements</h2>
+  <ul class="features">
+    <li><strong>macOS on Apple Silicon</strong> (arm64). Intel Macs not supported yet.</li>
+    <li>An <a href="https://openrouter.ai">OpenRouter</a> API key for the AI features.</li>
+  </ul>
+
+  <h2>How it works</h2>
+  <ul class="features">
+    <li>Lives in the menu-bar tray — no dock icon.</li>
+    <li><kbd>⌘⇧1</kbd> for region capture, <kbd>⌘⇧2</kbd> for full screen.</li>
+    <li>Vision model extracts text and describes what's on screen.</li>
+    <li>Chat about the capture; search past screenshots.</li>
+  </ul>
+
+  <div class="note" style="margin-top: 32px;">
+    <strong>Note:</strong> Vellum is not code-signed or notarized. The installer downloads the latest release from GitHub and removes the macOS quarantine flag so Gatekeeper allows it to launch. Inspect the <a href="install.sh">install.sh</a> source before running it if you'd like.
+  </div>
+
+  <footer>
+    <a href="https://github.com/arunkant/vellum">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/arunkant/vellum/releases">Releases</a>
+  </footer>
+</main>
+
+<script>
+  const btn = document.getElementById('copyBtn');
+  const cmd = document.getElementById('cmd');
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(cmd.textContent);
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    } catch {
+      btn.textContent = 'Press ⌘C';
+    }
+  });
+</script>
+</body>
+</html>

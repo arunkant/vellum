@@ -2,6 +2,14 @@
 
 A tray-resident macOS screenshot helper. Capture a region or the full screen with a global shortcut; Vellum runs the image through an OpenRouter vision model to extract text and describe what's on screen, then lets you chat about the capture.
 
+## Install (Apple Silicon)
+
+```sh
+curl -fsSL https://arunkant.github.io/vellum/install.sh | bash
+```
+
+The installer downloads the latest release from GitHub, drops `vellum.app` into `/Applications`, strips the macOS quarantine flag (Vellum is not code-signed), and launches it. Source: [docs/install.sh](docs/install.sh). Landing page: <https://arunkant.github.io/vellum/>.
+
 ## Requirements
 
 - Node.js 20+ and npm
