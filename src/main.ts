@@ -6,7 +6,12 @@ import { captureFullScreen } from './capture';
 import { initDB } from './db';
 import { resolveScreenshotPath } from './screenshots';
 import { setupIPC } from './ipc';
-import { startUpdateScheduler, stopUpdateScheduler } from './updater';
+import {
+  applyPendingUpdateOnStartup,
+  applyStagedUpdateOnQuit,
+  startUpdateScheduler,
+  stopUpdateScheduler,
+} from './updater';
 import {
   createMainWindow,
   createTray,
@@ -21,6 +26,12 @@ import {
 } from './windows';
 
 if (started) app.quit();
+
+// Before anything else: if a previous session staged an update, apply it now
+// and relaunch. Survives reboots, crashes, force-quits. When this returns
+// true, app.exit() has been called and the process is shutting down — just
+// stop running.
+const applyingPendingUpdate = applyPendingUpdateOnStartup();
 
 /** After a screenshot lands on disk: show chat window, refresh gallery, run AI. */
 async function onScreenshotCaptured(filepath: string) {
@@ -58,6 +69,7 @@ function registerShortcuts() {
 }
 
 app.whenReady().then(() => {
+  if (applyingPendingUpdate) return;
   initDB();
 
   // Custom protocol so the renderer can load screenshots safely
@@ -97,7 +109,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => setQuitting(true));
+app.on('before-quit', () => {
+  setQuitting(true);
+  applyStagedUpdateOnQuit();
+});
 
 app.on('will-quit', () => {
   closeChatWindow();

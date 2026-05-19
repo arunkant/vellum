@@ -23,6 +23,32 @@ export type UpdaterState =
 let state: UpdaterState = { kind: 'idle' };
 const listeners = new Set<(s: UpdaterState) => void>();
 
+interface PendingMarker { version: string; stagedAppPath: string }
+
+function pendingMarkerPath(): string {
+  return path.join(app.getPath('userData'), 'pending-update.json');
+}
+
+function readPendingMarker(): PendingMarker | null {
+  try {
+    return JSON.parse(fs.readFileSync(pendingMarkerPath(), 'utf-8')) as PendingMarker;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingMarker(m: PendingMarker): void {
+  try {
+    fs.writeFileSync(pendingMarkerPath(), JSON.stringify(m));
+  } catch (err) {
+    console.error('failed to write pending update marker:', err);
+  }
+}
+
+function clearPendingMarker(): void {
+  try { fs.unlinkSync(pendingMarkerPath()); } catch { /* ignore */ }
+}
+
 export function getUpdaterState(): UpdaterState { return state; }
 
 export function onUpdaterStateChange(fn: (s: UpdaterState) => void): () => void {
@@ -130,27 +156,35 @@ async function stageUpdate(asset: GhAsset, version: string): Promise<string> {
   return appPath;
 }
 
+let swapSpawned = false;
+
 /**
- * Swap the running .app with `stagedAppPath` and relaunch. Writes a small shell
- * script that waits for our PID to exit, then performs `rm -rf` + `mv` + `open`.
- * The script runs detached so it survives `app.quit()`.
+ * Write + spawn a detached shell script that waits for our PID to exit, then
+ * swaps `stagedAppPath` into `currentAppPath`. If `relaunch` is true, the
+ * script re-opens the app afterwards. Idempotent across calls within a single
+ * process lifetime — only the first invocation spawns.
  */
-async function applyAndRelaunch(stagedAppPath: string): Promise<void> {
+function spawnSwapScript(stagedAppPath: string, opts: { relaunch: boolean }): void {
+  if (swapSpawned) return;
+  swapSpawned = true;
+
   const currentAppPath = getRunningAppPath();
   const pid = process.pid;
   const scriptPath = path.join(os.tmpdir(), `vellum-apply-update-${Date.now()}.sh`);
   const logPath = path.join(os.tmpdir(), `vellum-apply-update-${Date.now()}.log`);
 
+  const openLine = opts.relaunch ? `echo "launching ${currentAppPath}"\nopen "${currentAppPath}"` : '';
+
   const script = `#!/usr/bin/env bash
 set -eu
 exec >"${logPath}" 2>&1
 echo "waiting for pid ${pid} to exit..."
-for _ in $(seq 1 50); do
+for _ in $(seq 1 100); do
   if ! kill -0 ${pid} 2>/dev/null; then break; fi
   sleep 0.1
 done
 if kill -0 ${pid} 2>/dev/null; then
-  echo "pid ${pid} still alive after 5s, force-killing"
+  echo "pid ${pid} still alive after 10s, force-killing"
   kill -9 ${pid} 2>/dev/null || true
   sleep 0.5
 fi
@@ -158,8 +192,7 @@ echo "swapping ${currentAppPath}"
 rm -rf "${currentAppPath}"
 mv "${stagedAppPath}" "${currentAppPath}"
 xattr -dr com.apple.quarantine "${currentAppPath}" 2>/dev/null || true
-echo "launching ${currentAppPath}"
-open "${currentAppPath}"
+${openLine}
 echo "done"
 `;
   fs.writeFileSync(scriptPath, script, { mode: 0o755 });
@@ -169,8 +202,6 @@ echo "done"
     stdio: 'ignore',
   });
   child.unref();
-
-  app.quit();
 }
 
 let checking = false;
@@ -209,6 +240,7 @@ export async function checkForUpdates(opts: { userInitiated?: boolean } = {}): P
 
     setState({ kind: 'downloading', version: latest });
     const stagedAppPath = await stageUpdate(asset, latest);
+    writePendingMarker({ version: latest, stagedAppPath });
     setState({ kind: 'ready', version: latest, stagedAppPath });
 
     new Notification({
@@ -227,10 +259,54 @@ export async function checkForUpdates(opts: { userInitiated?: boolean } = {}): P
   }
 }
 
-/** Apply the staged update (no-op unless state is `ready`). */
+/** Apply the staged update and relaunch (no-op unless state is `ready`). */
 export async function installStagedUpdate(): Promise<void> {
   if (state.kind !== 'ready') return;
-  await applyAndRelaunch(state.stagedAppPath);
+  spawnSwapScript(state.stagedAppPath, { relaunch: true });
+  app.quit();
+}
+
+/**
+ * If an update is staged, spawn the swap script without relaunching. Intended
+ * for `before-quit` so a normal app quit also applies the pending update.
+ * Safe to call when no update is staged.
+ */
+export function applyStagedUpdateOnQuit(): void {
+  if (state.kind !== 'ready') return;
+  spawnSwapScript(state.stagedAppPath, { relaunch: false });
+}
+
+/**
+ * Reboot-safe entry point. On every startup, check whether the previous
+ * session left a staged update on disk. If so, spawn the swap script and exit
+ * immediately so the new bundle is in place before the user sees a window.
+ * Returns true when a swap is being applied (caller should not continue init).
+ *
+ * Cleans up stale markers in the no-op cases (staged path missing, version
+ * already current).
+ */
+export function applyPendingUpdateOnStartup(): boolean {
+  if (!app.isPackaged) return false;
+  if (process.platform !== 'darwin' || process.arch !== 'arm64') return false;
+
+  const marker = readPendingMarker();
+  if (!marker) return false;
+
+  // Update already applied in a previous session (or we somehow rolled back).
+  if (compareVersions(marker.version, app.getVersion()) <= 0) {
+    clearPendingMarker();
+    return false;
+  }
+
+  // Staged bundle is gone (tmpdir purged, manual cleanup, etc.) — re-check later.
+  if (!fs.existsSync(marker.stagedAppPath)) {
+    clearPendingMarker();
+    return false;
+  }
+
+  spawnSwapScript(marker.stagedAppPath, { relaunch: true });
+  app.exit(0);
+  return true;
 }
 
 let interval: NodeJS.Timeout | null = null;
