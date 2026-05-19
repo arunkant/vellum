@@ -33,6 +33,29 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <!-- Detail panel (slide-in from right) -->
+    <div id="detail-backdrop" class="detail-backdrop"></div>
+    <aside id="detail-panel" class="detail-panel" aria-hidden="true">
+      <div class="detail-header">
+        <span class="detail-title" id="detail-title">Screenshot</span>
+        <button id="detail-close" class="btn-icon" title="Close" aria-label="Close">✕</button>
+      </div>
+      <div class="detail-body">
+        <img id="detail-image" class="detail-image" alt="" />
+        <div class="detail-meta">
+          <span id="detail-time"></span>
+          <span id="detail-model" class="ai-model-badge"></span>
+        </div>
+        <div id="detail-ai" class="detail-ai"></div>
+      </div>
+      <div class="detail-actions">
+        <button id="detail-chat" class="btn btn-primary btn-sm">Chat</button>
+        <button id="detail-open" class="btn btn-secondary btn-sm">Open in viewer</button>
+        <span class="detail-actions-spacer"></span>
+        <button id="detail-delete" class="btn btn-secondary btn-sm">Delete</button>
+      </div>
+    </aside>
+
     <!-- Settings Overlay -->
     <div id="settings-overlay" class="settings-overlay">
       <div class="settings-panel">
