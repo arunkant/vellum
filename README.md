@@ -82,7 +82,7 @@ The app is unsigned; distribution is a GitHub Releases zip + an install script s
    curl -fsSL https://arunkant.github.io/vellum/install.sh | bash
    ```
 
-Users upgrade by re-running the curl line. No auto-update (would require code signing + notarization).
+Packaged builds check `api.github.com/repos/arunkant/vellum/releases/latest` on launch and every 24 hours. When a newer `darwin-arm64.zip` is found, Vellum downloads and stages it in `$TMPDIR`, then surfaces a "Restart to Install vX.Y.Z" item in the tray menu (plus a system notification). Clicking it swaps the running `.app` in place, strips the quarantine flag, and relaunches. Users on older builds without this can still upgrade by re-running the curl line.
 
 If you ever edit [docs/install.sh](docs/install.sh) or [docs/index.html](docs/index.html), just `git push` — Pages redeploys automatically within a minute.
 

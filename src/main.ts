@@ -6,6 +6,7 @@ import { captureFullScreen } from './capture';
 import { initDB } from './db';
 import { resolveScreenshotPath } from './screenshots';
 import { setupIPC } from './ipc';
+import { startUpdateScheduler, stopUpdateScheduler } from './updater';
 import {
   createMainWindow,
   createTray,
@@ -73,6 +74,7 @@ app.whenReady().then(() => {
   createMainWindow();
   createTray({ onRegion: openRegionCapture, onFull: fullScreenAndProcess });
   registerShortcuts();
+  startUpdateScheduler();
 
   // Tray-only accessory app — doesn't steal focus from fullscreen apps.
   app.setActivationPolicy('accessory');
@@ -100,5 +102,6 @@ app.on('before-quit', () => setQuitting(true));
 app.on('will-quit', () => {
   closeChatWindow();
   stopLocalServer();
+  stopUpdateScheduler();
   globalShortcut.unregisterAll();
 });

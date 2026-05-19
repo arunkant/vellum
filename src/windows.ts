@@ -4,6 +4,13 @@ import { getOverlayHTML } from './overlay-html';
 import { getChatHTML } from './chat-html';
 import { chatMessagesTbl } from './db';
 import { listScreenshots } from './screenshots';
+import {
+  checkForUpdates,
+  installStagedUpdate,
+  getUpdaterState,
+  onUpdaterStateChange,
+  type UpdaterState,
+} from './updater';
 
 let mainWindow: BrowserWindow | null = null;
 let overlayWindows: BrowserWindow[] = [];
@@ -196,17 +203,45 @@ function createTrayIcon(): Electron.NativeImage {
   return img;
 }
 
-export function createTray(handlers: { onRegion(): void; onFull(): void }) {
-  tray = new Tray(createTrayIcon());
-  tray.setToolTip('Vellum - AI Helper');
+function updateMenuItem(state: UpdaterState): Electron.MenuItemConstructorOptions {
+  switch (state.kind) {
+    case 'checking':
+      return { label: 'Checking for Updates…', enabled: false };
+    case 'downloading':
+      return { label: `Downloading v${state.version.replace(/^v/, '')}…`, enabled: false };
+    case 'ready':
+      return {
+        label: `Restart to Install v${state.version.replace(/^v/, '')}`,
+        click: () => { void installStagedUpdate(); },
+      };
+    case 'up-to-date':
+      return { label: 'Check for Updates', click: () => { void checkForUpdates({ userInitiated: true }); } };
+    case 'error':
+    case 'idle':
+    default:
+      return { label: 'Check for Updates…', click: () => { void checkForUpdates({ userInitiated: true }); } };
+  }
+}
 
+function rebuildTrayMenu(handlers: { onRegion(): void; onFull(): void }) {
+  if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show Vellum', click: showMainWindow },
     { label: 'Capture Region (Drag)', accelerator: 'CmdOrCtrl+Shift+1', click: handlers.onRegion },
     { label: 'Capture Full Screen', accelerator: 'CmdOrCtrl+Shift+2', click: handlers.onFull },
     { type: 'separator' },
+    updateMenuItem(getUpdaterState()),
+    { type: 'separator' },
     { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
   ]));
+}
+
+export function createTray(handlers: { onRegion(): void; onFull(): void }) {
+  tray = new Tray(createTrayIcon());
+  tray.setToolTip('Vellum - AI Helper');
+
+  rebuildTrayMenu(handlers);
+  onUpdaterStateChange(() => rebuildTrayMenu(handlers));
 
   tray.on('double-click', showMainWindow);
 }
