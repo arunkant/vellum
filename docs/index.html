@@ -38,7 +38,16 @@
     padding: 80px 24px 96px;
   }
   header { text-align: center; margin-bottom: 56px; }
-  header img.logo { width: 88px; height: 88px; border-radius: 20px; margin-bottom: 20px; }
+  header img.logo {
+    width: 128px;
+    height: 128px;
+    border-radius: 28px;
+    margin-bottom: 24px;
+    filter: drop-shadow(0 12px 32px rgba(139, 92, 246, 0.35))
+            drop-shadow(0 4px 12px rgba(139, 92, 246, 0.25));
+    transition: transform 0.25s ease;
+  }
+  header img.logo:hover { transform: scale(1.04); }
   h1 { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 10px; }
   .tagline { color: var(--text-secondary); font-size: 17px; max-width: 520px; margin: 0 auto; }
   h2 {
@@ -92,6 +101,27 @@
     font-size: 14px;
   }
   .note strong { color: var(--text-primary); }
+  .highlight {
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.04));
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    margin: 32px 0 0;
+  }
+  .highlight .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  .highlight h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
+  .highlight p { margin: 0; color: var(--text-secondary); font-size: 14px; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { color: var(--accent-hover); text-decoration: underline; }
   footer {
@@ -118,8 +148,14 @@
   <header>
     <img class="logo" src="icon.png" alt="Vellum logo" onerror="this.style.display='none'" />
     <h1>Vellum</h1>
-    <p class="tagline">A tray-resident macOS screenshot helper. Capture a region or the full screen, let AI extract the text and describe what's there, then chat about it.</p>
+    <p class="tagline">A tray-resident macOS screenshot helper. Capture a region or the full screen, extract the text, describe what's on screen, and chat about it — all running locally on your Mac.</p>
   </header>
+
+  <div class="highlight">
+    <span class="badge">100% Local</span>
+    <h3>Runs Gemma 4 E4B on-device</h3>
+    <p>Vision-capable open model running through llama.cpp. No API keys, no accounts, no data leaves your machine. Your screenshots and chats stay on your Mac.</p>
+  </div>
 
   <h2>Install</h2>
   <div class="install">
@@ -130,15 +166,15 @@
   <h2>Requirements</h2>
   <ul class="features">
     <li><strong>macOS on Apple Silicon</strong> (arm64). Intel Macs not supported yet.</li>
-    <li>An <a href="https://openrouter.ai">OpenRouter</a> API key for the AI features.</li>
+    <li>~5 GB of free disk space for the local Gemma 4 model weights (downloaded on first launch).</li>
   </ul>
 
   <h2>How it works</h2>
   <ul class="features">
     <li>Lives in the menu-bar tray — no dock icon.</li>
     <li><kbd>⌘⇧1</kbd> for region capture, <kbd>⌘⇧2</kbd> for full screen.</li>
-    <li>Vision model extracts text and describes what's on screen.</li>
-    <li>Chat about the capture; search past screenshots.</li>
+    <li>Local vision model extracts text and describes what's on screen.</li>
+    <li>Chat about the capture; search across past screenshots and conversations.</li>
   </ul>
 
   <div class="note" style="margin-top: 32px;">

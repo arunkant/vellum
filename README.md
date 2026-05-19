@@ -55,6 +55,37 @@ Regenerate tray/app icons from source PNGs:
 npm run build:assets
 ```
 
+## Publishing a release
+
+The app is unsigned; distribution is a GitHub Releases zip + an install script served from GitHub Pages at <https://arunkant.github.io/vellum/>.
+
+**One-time setup** (already done — keep for reference):
+
+1. Create public repo `arunkant/vellum`, push `main`.
+2. Repo → Settings → Pages → Source: "Deploy from a branch", Branch `main` / Folder `/docs` → Save.
+
+**Each release:**
+
+1. Bump `version` in [package.json](package.json).
+2. Build the zip:
+   ```sh
+   npm run make
+   ```
+   Output: `out/make/zip/darwin/arm64/vellum-darwin-arm64-<version>.zip`.
+3. On github.com → Releases → **Draft a new release**:
+   - Tag: `vX.Y.Z` (create new on publish)
+   - Title: `vX.Y.Z`
+   - Drag the zip from `out/make/zip/darwin/arm64/` into the assets box. **Filename must contain `darwin-arm64` and end in `.zip`** — [docs/install.sh](docs/install.sh) greps for that.
+   - Publish.
+4. Smoke-test in a fresh terminal:
+   ```sh
+   curl -fsSL https://arunkant.github.io/vellum/install.sh | bash
+   ```
+
+Users upgrade by re-running the curl line. No auto-update (would require code signing + notarization).
+
+If you ever edit [docs/install.sh](docs/install.sh) or [docs/index.html](docs/index.html), just `git push` — Pages redeploys automatically within a minute.
+
 ## Basic Usage
 
 1. Launch Vellum. It lives in the menu-bar tray — there's no dock icon.
@@ -69,3 +100,9 @@ npm run build:assets
 Captured images and AI results are cached locally under Electron's `userData` directory.
 
 On packaged builds, Vellum registers itself as a login item and starts hidden in the tray.
+
+## License
+
+Vellum is released under the MIT License — see [LICENSE](LICENSE).
+
+Third-party components bundled with the app (notably the `llama.cpp` binaries under [vendor/llama/](vendor/llama/)) retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
