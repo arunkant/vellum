@@ -351,6 +351,12 @@ async function loadSettings() {
 
   const status = await window.vellum.getLocalLlmStatus();
   renderLocalLlmStatus(status);
+
+  const versionEl = document.getElementById('app-version');
+  if (versionEl) {
+    const v = await window.vellum.getAppVersion();
+    versionEl.textContent = `Vellum v${v}`;
+  }
 }
 
 function updateSettingsHint(hasKey: string) {
@@ -372,6 +378,11 @@ closeSettingsBtn.addEventListener('click', () => {
 document.getElementById('openrouter-link')!.addEventListener('click', (e) => {
   e.preventDefault();
   window.vellum.openExternal('https://openrouter.ai/keys');
+});
+
+document.getElementById('homepage-link')!.addEventListener('click', (e) => {
+  e.preventDefault();
+  window.vellum.openExternal('https://www.arunkant.com/vellum/');
 });
 
 settingsOverlay.addEventListener('click', (e) => {

@@ -71,6 +71,9 @@ const api = {
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 
+  getAppVersion: (): Promise<string> =>
+    ipcRenderer.invoke('get-app-version'),
+
   // Local llama-server
   getLocalLlmStatus: (): Promise<LocalLlmStatus> =>
     ipcRenderer.invoke('local-llm:status'),

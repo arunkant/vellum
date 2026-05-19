@@ -5,10 +5,10 @@ A tray-resident macOS screenshot helper. Capture a region or the full screen wit
 ## Install (Apple Silicon)
 
 ```sh
-curl -fsSL https://arunkant.github.io/vellum/install.sh | bash
+curl -fsSL https://www.arunkant.com/vellum/install.sh | bash
 ```
 
-The installer downloads the latest release from GitHub, drops `vellum.app` into `/Applications`, strips the macOS quarantine flag (Vellum is not code-signed), and launches it. Source: [docs/install.sh](docs/install.sh). Landing page: <https://arunkant.github.io/vellum/>.
+The installer downloads the latest release from GitHub, drops `vellum.app` into `/Applications`, strips the macOS quarantine flag (Vellum is not code-signed), and launches it. Source: [docs/install.sh](docs/install.sh). Landing page: <https://www.arunkant.com/vellum/>.
 
 ## Requirements
 
@@ -57,7 +57,7 @@ npm run build:assets
 
 ## Publishing a release
 
-The app is unsigned; distribution is a GitHub Releases zip + an install script served from GitHub Pages at <https://arunkant.github.io/vellum/>.
+The app is unsigned; distribution is a GitHub Releases zip + an install script served from GitHub Pages at <https://www.arunkant.com/vellum/>.
 
 **One-time setup** (already done — keep for reference):
 
@@ -79,7 +79,7 @@ The app is unsigned; distribution is a GitHub Releases zip + an install script s
    - Publish.
 4. Smoke-test in a fresh terminal:
    ```sh
-   curl -fsSL https://arunkant.github.io/vellum/install.sh | bash
+   curl -fsSL https://www.arunkant.com/vellum/install.sh | bash
    ```
 
 Packaged builds check `api.github.com/repos/arunkant/vellum/releases/latest` on launch and every 24 hours. When a newer `darwin-arm64.zip` is found, Vellum downloads and stages it in `$TMPDIR`, then surfaces a "Restart to Install vX.Y.Z" item in the tray menu (plus a system notification). Clicking it swaps the running `.app` in place, strips the quarantine flag, and relaunches. Users on older builds without this can still upgrade by re-running the curl line.

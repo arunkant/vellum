@@ -47,6 +47,7 @@ interface VellumAPI {
   getAIResult: (filename: string) => Promise<AIResult | null>;
   openChatWindow: (filepath: string) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
+  getAppVersion: () => Promise<string>;
   getLocalLlmStatus: () => Promise<LocalLlmStatus>;
   downloadLocalModel: () => Promise<boolean>;
   cancelLocalModelDownload: () => Promise<boolean>;

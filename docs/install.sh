@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Vellum macOS installer.
-# Usage: curl -fsSL https://arunkant.github.io/vellum/install.sh | bash
+# Usage: curl -fsSL https://www.arunkant.com/vellum/install.sh | bash
 
 REPO="${VELLUM_REPO:-arunkant/vellum}"
 APP_NAME="vellum"

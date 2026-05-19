@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron';
+import { app, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { getConfig, saveConfig, type AIProvider } from './config';
 import {
@@ -80,6 +80,8 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   });
 
   ipcMain.handle('open-external', (_e, url: string) => shell.openExternal(url));
+
+  ipcMain.handle('get-app-version', () => app.getVersion());
 
   // Overlay → main
   ipcMain.on('overlay:selected', async (_e, region: Region) => {

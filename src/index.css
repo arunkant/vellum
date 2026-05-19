@@ -582,6 +582,32 @@ main {
   gap: 12px;
 }
 
+.settings-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+}
+
+.settings-footer-sep {
+  opacity: 0.5;
+}
+
+.settings-footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.settings-footer a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .local-llm-status {
   display: flex;
   flex-direction: column;
