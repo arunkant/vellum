@@ -17,6 +17,7 @@ let overlayWindows: BrowserWindow[] = [];
 let chatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+let hiddenForCapture = { main: false, chat: false };
 
 export function setQuitting(value: boolean) { isQuitting = value; }
 export function getMainWindow() { return mainWindow; }
@@ -87,6 +88,15 @@ export function openRegionCapture() {
     return;
   }
 
+  // Hide our own windows first. On macOS, focusing the overlay activates the
+  // Vellum app, which raises any visible Vellum window above other apps — and
+  // since the overlay is transparent, the user would see our UI through it
+  // instead of whatever they're trying to capture.
+  hiddenForCapture.main = !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
+  hiddenForCapture.chat = !!(chatWindow && !chatWindow.isDestroyed() && chatWindow.isVisible());
+  if (hiddenForCapture.main) mainWindow?.hide();
+  if (hiddenForCapture.chat) chatWindow?.hide();
+
   // One overlay per display: a single BrowserWindow can't span multiple
   // monitors on macOS, so we mirror the native screenshot tool and put a
   // dedicated transparent window on each display.
@@ -140,6 +150,19 @@ export function closeOverlay() {
     if (!win.isDestroyed()) win.destroy();
   }
   overlayWindows = [];
+}
+
+// Restore windows we hid for the capture overlay. Separate from closeOverlay
+// because on a successful region selection we keep windows hidden through the
+// brief capture delay so they aren't included in the screenshot.
+export function restoreWindowsHiddenForCapture() {
+  if (hiddenForCapture.main && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+  }
+  if (hiddenForCapture.chat && chatWindow && !chatWindow.isDestroyed()) {
+    chatWindow.show();
+  }
+  hiddenForCapture = { main: false, chat: false };
 }
 
 export function openChatWindow(filepath: string) {

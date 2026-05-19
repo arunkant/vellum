@@ -21,6 +21,7 @@ import {
   closeOverlay,
   openChatWindow,
   closeChatWindow,
+  restoreWindowsHiddenForCapture,
 } from './windows';
 
 export interface IPCHandlers {
@@ -89,10 +90,17 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
     // Brief delay so the overlay isn't captured in the screenshot.
     await new Promise((r) => setTimeout(r, 200));
     const filepath = await captureRegion(region);
+    // Restore *after* capture so our own UI isn't pulled into the screenshot.
+    // On success, onScreenshotCaptured opens a new chat window which makes
+    // the restored chat (if any) get destroyed and recreated — that's fine.
+    restoreWindowsHiddenForCapture();
     if (filepath) onScreenshotCaptured(filepath);
   });
 
-  ipcMain.on('overlay:cancelled', () => closeOverlay());
+  ipcMain.on('overlay:cancelled', () => {
+    closeOverlay();
+    restoreWindowsHiddenForCapture();
+  });
 
   // Chat window
   ipcMain.handle('chat-message', async (_e, filepath: string, message: string) => {
