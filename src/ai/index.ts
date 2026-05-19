@@ -52,17 +52,18 @@ export async function analyzeScreenshot(filepath: string): Promise<AIResult | nu
 }
 
 export async function chatAboutScreenshot(filepath: string, userMessage: string): Promise<string | null> {
+  return runPromptAgainstScreenshot(filepath, chatPrompt(userMessage));
+}
+
+export async function runPromptAgainstScreenshot(filepath: string, prompt: string): Promise<string | null> {
   const provider = activeProvider();
   if (!provider.isConfigured()) return unconfiguredMessage();
 
   try {
-    const res = await provider.complete({
-      imagePath: filepath,
-      prompt: chatPrompt(userMessage),
-    });
+    const res = await provider.complete({ imagePath: filepath, prompt });
     return res?.content || 'No response from AI.';
   } catch (err) {
-    console.error('Chat failed:', err);
+    console.error('AI prompt failed:', err);
     return getConfig().aiProvider === 'local'
       ? '❌ Local model error. Check llama-server logs.'
       : '❌ Failed to reach OpenRouter. Check your connection.';

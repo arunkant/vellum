@@ -33,26 +33,51 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <!-- Detail panel (slide-in from right) -->
+    <!-- Workspace panel (slide-in from right) -->
     <div id="detail-backdrop" class="detail-backdrop"></div>
-    <aside id="detail-panel" class="detail-panel" aria-hidden="true">
-      <div class="detail-header">
-        <span class="detail-title" id="detail-title">Screenshot</span>
-        <button id="detail-close" class="btn-icon" title="Close" aria-label="Close">✕</button>
-      </div>
-      <div class="detail-body">
-        <img id="detail-image" class="detail-image" alt="" />
-        <div class="detail-meta">
-          <span id="detail-time"></span>
-          <span id="detail-model" class="ai-model-badge"></span>
+    <aside id="detail-panel" class="detail-panel workspace" aria-hidden="true">
+      <div class="ws-titlebar">
+        <span class="ws-title" id="detail-title">Screenshot</span>
+        <div class="ws-titlebar-actions">
+          <button id="detail-open" class="btn-icon ws-icon-btn" title="Open in viewer">↗</button>
+          <button id="detail-chat-toggle" class="btn-icon ws-icon-btn" title="Toggle chat history">💬</button>
+          <button id="detail-delete" class="btn-icon ws-icon-btn" title="Delete">🗑</button>
+          <button id="detail-close" class="btn-icon ws-icon-btn" title="Close" aria-label="Close">✕</button>
         </div>
-        <div id="detail-ai" class="detail-ai"></div>
       </div>
-      <div class="detail-actions">
-        <button id="detail-chat" class="btn btn-primary btn-sm">Chat</button>
-        <button id="detail-open" class="btn btn-secondary btn-sm">Open in viewer</button>
-        <span class="detail-actions-spacer"></span>
-        <button id="detail-delete" class="btn btn-secondary btn-sm">Delete</button>
+
+      <div class="ws-stage" id="detail-stage">
+        <img id="detail-image" class="ws-image" alt="" />
+        <div class="ws-tag-rail" id="detail-tag-rail"></div>
+
+        <div class="ws-chat-panel" id="detail-chat-panel">
+          <div class="ws-chat-head">
+            <span>Chat history</span>
+            <button class="btn-icon ws-icon-btn" id="detail-chat-close">▾</button>
+          </div>
+          <div class="ws-messages" id="detail-messages"></div>
+        </div>
+      </div>
+
+      <div class="ws-reply-strip" id="detail-reply-strip">
+        <span class="ws-reply-label">AI</span>
+        <span class="ws-reply-text" id="detail-reply-text"></span>
+        <span class="ws-reply-chev">▴</span>
+      </div>
+
+      <div class="ws-action-bar" id="detail-action-bar"></div>
+
+      <div class="ws-input-area">
+        <input
+          type="text"
+          id="detail-omni-input"
+          class="ws-input"
+          placeholder="Ask, #tag, or /script…"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <button id="detail-send-btn" class="ws-send">↵</button>
       </div>
     </aside>
 

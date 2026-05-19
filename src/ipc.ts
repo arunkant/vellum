@@ -1,4 +1,4 @@
-import { app, ipcMain, shell } from 'electron';
+import { app, clipboard, ipcMain, nativeImage, shell } from 'electron';
 import path from 'node:path';
 import { getConfig, saveConfig, type AIProvider } from './config';
 import {
@@ -6,9 +6,11 @@ import {
   downloadLocalModel,
   cancelLocalDownload,
   getLocalLlmStatus,
+  runPromptAgainstScreenshot,
   stopLocalServer,
 } from './ai';
-import { aiResultsTbl, chatMessagesTbl, screenshotsTbl } from './db';
+import { findSavedPrompt, SAVED_PROMPTS } from './ai/saved-prompts';
+import { aiResultsTbl, chatMessagesTbl, screenshotsTbl, tagsTbl } from './db';
 import {
   listScreenshots,
   resolveScreenshotPath,
@@ -117,10 +119,105 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
     return reply;
   });
 
+  ipcMain.handle('chat-run-prompt', async (_e, filepath: string, promptId: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return null;
+    const row = screenshotsTbl.findByFilename(path.basename(safe));
+    if (!row) return null;
+    const saved = SAVED_PROMPTS.find((p) => p.id === promptId) ?? findSavedPrompt(promptId);
+    if (!saved) return null;
+
+    chatMessagesTbl.add(row.id, { role: 'user', text: `/${saved.command}`, time: Date.now() });
+    const reply = await runPromptAgainstScreenshot(safe, saved.prompt);
+    if (reply) {
+      chatMessagesTbl.add(row.id, { role: 'ai', text: reply, time: Date.now() });
+    }
+    return reply;
+  });
+
+  ipcMain.handle('chat-add-tag', (_e, filepath: string, tag: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return [];
+    const filename = path.basename(safe);
+    const row = screenshotsTbl.findByFilename(filename);
+    if (!row) return [];
+    const cleaned = normalizeTag(tag);
+    if (cleaned) tagsTbl.add(row.id, cleaned);
+    return tagsTbl.listByFilename(filename);
+  });
+
+  ipcMain.handle('chat-remove-tag', (_e, filepath: string, tag: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return [];
+    const filename = path.basename(safe);
+    const row = screenshotsTbl.findByFilename(filename);
+    if (!row) return [];
+    const cleaned = normalizeTag(tag);
+    if (cleaned) tagsTbl.remove(row.id, cleaned);
+    return tagsTbl.listByFilename(filename);
+  });
+
+  ipcMain.handle('chat-copy-image', (_e, filepath: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return false;
+    const img = nativeImage.createFromPath(safe);
+    if (img.isEmpty()) return false;
+    clipboard.writeImage(img);
+    return true;
+  });
+
+  ipcMain.handle('chat-copy-as', (_e, filepath: string, format: 'slack' | 'jira') => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return false;
+    const filename = path.basename(safe);
+    const ai = aiResultsTbl.getByFilename(filename);
+    const tags = tagsTbl.listByFilename(filename);
+    const text = format === 'jira'
+      ? formatForJira(filename, ai?.description ?? '', tags)
+      : formatForSlack(filename, ai?.description ?? '', tags);
+    clipboard.writeText(text);
+    return true;
+  });
+
+  ipcMain.handle('chat-list-tags', (_e, filepath: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    return safe ? tagsTbl.listByFilename(path.basename(safe)) : [];
+  });
+
+  ipcMain.handle('chat-get-history', (_e, filepath: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    return safe ? chatMessagesTbl.getByFilename(path.basename(safe)) : [];
+  });
+
+  ipcMain.handle('chat-list-saved-prompts', () => SAVED_PROMPTS);
+
   ipcMain.on('chat-window-close', () => closeChatWindow());
 
   ipcMain.handle('open-chat-window', (_e, filepath: string) => {
     const safe = resolveScreenshotPath(filepath);
     if (safe) openChatWindow(safe);
   });
+}
+
+function normalizeTag(raw: string): string | null {
+  if (typeof raw !== 'string') return null;
+  const stripped = raw.trim().replace(/^#+/, '').toLowerCase();
+  const cleaned = stripped.replace(/[^a-z0-9_\-/]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return cleaned.length > 0 && cleaned.length <= 64 ? cleaned : null;
+}
+
+function formatForSlack(filename: string, description: string, tags: string[]): string {
+  const lines: string[] = [];
+  lines.push(`*Screenshot:* \`${filename}\``);
+  if (description) lines.push('', description);
+  if (tags.length) lines.push('', tags.map((t) => `\`#${t}\``).join(' '));
+  return lines.join('\n');
+}
+
+function formatForJira(filename: string, description: string, tags: string[]): string {
+  const lines: string[] = [];
+  lines.push(`*Screenshot:* {{${filename}}}`);
+  if (description) lines.push('', description);
+  if (tags.length) lines.push('', tags.map((t) => `{{#${t}}}`).join(' '));
+  return lines.join('\n');
 }

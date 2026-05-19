@@ -35,6 +35,20 @@ export interface LocalLlmStatus {
   binaryPresent: boolean;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'ai';
+  text: string;
+  time: number;
+}
+
+export interface SavedPrompt {
+  id: string;
+  name: string;
+  command: string;
+  description: string;
+  prompt: string;
+}
+
 const api = {
   getScreenshots: (): Promise<ScreenshotEntry[]> =>
     ipcRenderer.invoke('get-screenshots'),
@@ -67,6 +81,28 @@ const api = {
 
   openChatWindow: (filepath: string): Promise<void> =>
     ipcRenderer.invoke('open-chat-window', filepath),
+
+  // Workspace (shared with floating chat window)
+  workspace: {
+    sendChat: (filepath: string, message: string): Promise<string | null> =>
+      ipcRenderer.invoke('chat-message', filepath, message),
+    runSavedPrompt: (filepath: string, promptId: string): Promise<string | null> =>
+      ipcRenderer.invoke('chat-run-prompt', filepath, promptId),
+    addTag: (filepath: string, tag: string): Promise<string[]> =>
+      ipcRenderer.invoke('chat-add-tag', filepath, tag),
+    removeTag: (filepath: string, tag: string): Promise<string[]> =>
+      ipcRenderer.invoke('chat-remove-tag', filepath, tag),
+    listTags: (filepath: string): Promise<string[]> =>
+      ipcRenderer.invoke('chat-list-tags', filepath),
+    getHistory: (filepath: string): Promise<ChatMessage[]> =>
+      ipcRenderer.invoke('chat-get-history', filepath),
+    copyImage: (filepath: string): Promise<boolean> =>
+      ipcRenderer.invoke('chat-copy-image', filepath),
+    copyAs: (filepath: string, format: 'slack' | 'jira'): Promise<boolean> =>
+      ipcRenderer.invoke('chat-copy-as', filepath, format),
+    listSavedPrompts: (): Promise<SavedPrompt[]> =>
+      ipcRenderer.invoke('chat-list-saved-prompts'),
+  },
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),

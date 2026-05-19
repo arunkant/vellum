@@ -2,7 +2,8 @@ import { app, BrowserWindow, Menu, Tray, nativeImage, screen } from 'electron';
 import path from 'node:path';
 import { getOverlayHTML } from './overlay-html';
 import { getChatHTML } from './chat-html';
-import { chatMessagesTbl } from './db';
+import { SAVED_PROMPTS } from './ai/saved-prompts';
+import { chatMessagesTbl, tagsTbl } from './db';
 import { listScreenshots } from './screenshots';
 import {
   checkForUpdates,
@@ -172,7 +173,7 @@ export function openChatWindow(filepath: string) {
   }
 
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
-  const winW = 420, winH = 520;
+  const winW = 720, winH = 600;
 
   chatWindow = new BrowserWindow({
     x: Math.round((sw - winW) / 2),
@@ -196,7 +197,13 @@ export function openChatWindow(filepath: string) {
   chatWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   chatWindow.setAlwaysOnTop(true, 'floating');
 
-  const html = getChatHTML(filepath, chatMessagesTbl.getByFilename(path.basename(filepath)));
+  const filename = path.basename(filepath);
+  const html = getChatHTML({
+    filepath,
+    history: chatMessagesTbl.getByFilename(filename),
+    tags: tagsTbl.listByFilename(filename),
+    savedPrompts: SAVED_PROMPTS,
+  });
   chatWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
   chatWindow.once('ready-to-show', () => {

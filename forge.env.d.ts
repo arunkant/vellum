@@ -35,6 +35,32 @@ interface LocalLlmStatus {
   binaryPresent: boolean;
 }
 
+interface ChatMessage {
+  role: 'user' | 'ai';
+  text: string;
+  time: number;
+}
+
+interface SavedPrompt {
+  id: string;
+  name: string;
+  command: string;
+  description: string;
+  prompt: string;
+}
+
+interface VellumWorkspaceAPI {
+  sendChat: (filepath: string, message: string) => Promise<string | null>;
+  runSavedPrompt: (filepath: string, promptId: string) => Promise<string | null>;
+  addTag: (filepath: string, tag: string) => Promise<string[]>;
+  removeTag: (filepath: string, tag: string) => Promise<string[]>;
+  listTags: (filepath: string) => Promise<string[]>;
+  getHistory: (filepath: string) => Promise<ChatMessage[]>;
+  copyImage: (filepath: string) => Promise<boolean>;
+  copyAs: (filepath: string, format: 'slack' | 'jira') => Promise<boolean>;
+  listSavedPrompts: () => Promise<SavedPrompt[]>;
+}
+
 interface VellumAPI {
   getScreenshots: () => Promise<ScreenshotEntry[]>;
   captureRegion: () => Promise<ScreenshotEntry[]>;
@@ -46,6 +72,7 @@ interface VellumAPI {
   saveConfig: (config: Partial<AppConfig>) => Promise<AppConfig>;
   getAIResult: (filename: string) => Promise<AIResult | null>;
   openChatWindow: (filepath: string) => Promise<void>;
+  workspace: VellumWorkspaceAPI;
   openExternal: (url: string) => Promise<void>;
   getAppVersion: () => Promise<string>;
   getLocalLlmStatus: () => Promise<LocalLlmStatus>;
