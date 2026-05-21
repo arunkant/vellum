@@ -374,8 +374,9 @@ export function getChatHTML(data: ChatWindowData): string {
     '</svg>';
 
   const ACTIONS = [
-    { id: 'copy-image', label: 'Copy image', iconText: '📋',         run: () => api.copyImage(filepath) },
-    { id: 'copy-slack', label: 'Slack',      iconHtml: ICON_SLACK,   run: () => api.copyAs(filepath, 'slack') },
+    { id: 'copy-image',  label: 'Copy image', iconText: '📋',         run: () => api.copyImage(filepath) },
+    { id: 'copy-shadow', label: 'Shadow',     iconText: '🖼️',         run: () => api.copyWithShadow(filepath) },
+    { id: 'copy-slack',  label: 'Slack',      iconHtml: ICON_SLACK,   run: () => api.copyAs(filepath, 'slack') },
     { id: 'copy-jira',  label: 'JIRA',       iconHtml: ICON_JIRA,    run: () => api.copyAs(filepath, 'jira') },
     ...savedPrompts.map((p) => ({
       id: 'prompt:' + p.id,

@@ -18,6 +18,7 @@ import {
   screenshotsDir,
 } from './screenshots';
 import { captureRegion, captureFullScreen, Region } from './capture';
+import { decorateScreenshot } from './decorate';
 import {
   openRegionCapture,
   closeOverlay,
@@ -162,6 +163,15 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
     if (!safe) return false;
     const img = nativeImage.createFromPath(safe);
     if (img.isEmpty()) return false;
+    clipboard.writeImage(img);
+    return true;
+  });
+
+  ipcMain.handle('chat-copy-shadow', async (_e, filepath: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return false;
+    const img = await decorateScreenshot(safe);
+    if (!img || img.isEmpty()) return false;
     clipboard.writeImage(img);
     return true;
   });
