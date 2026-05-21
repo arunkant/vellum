@@ -13,6 +13,8 @@ const api = {
     ipcRenderer.invoke('chat-copy-image', filepath),
   copyAs: (filepath: string, format: 'slack' | 'jira'): Promise<boolean> =>
     ipcRenderer.invoke('chat-copy-as', filepath, format),
+  copyWithShadow: (filepath: string): Promise<boolean> =>
+    ipcRenderer.invoke('chat-copy-shadow', filepath),
   close: () => ipcRenderer.send('chat-window-close'),
 };
 
