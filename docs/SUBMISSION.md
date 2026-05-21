@@ -97,10 +97,10 @@ The same `VisionProvider` interface is also implemented by an OpenRouter‑backe
 
 A few things I learned shipping Gemma 4 to end‑users:
 
-- **The 4B/E4B vision model is genuinely shippable.** It comfortably reads UI text, error dialogs, and code editors. For dense documents I occasionally bump `-c` to 16k, but 8k is fine for screen captures.
+- **The 4B/E4B vision model is genuinely shippable.** It comfortably reads UI text, error dialogs, and code editors, and an 8k context (`-c 8192`) is plenty for a single screen capture.
 - **The multimodal projector is the easy thing to forget.** Without `--mmproj`, the model will silently treat the image like noise. Vellum downloads it alongside the weights and refuses to start the server if either file is missing.
 - **Q4_K_M is the right tradeoff for laptops.** It keeps the whole thing under ~5 GB on disk, leaves headroom for a browser, and the quality cost on screenshot tasks is invisible to me in practice.
-- **`temperature: 0.2`** for screenshot tasks. Higher temperatures make Gemma start *narrating* the UI; low temperatures make it answer the question.
+- **I run Gemma at a low `temperature: 0.2`.** Screenshot Q&A wants literal, deterministic answers rather than creative ones, so a low temperature is the safer default.
 
 ## Why Gemma 4 for this app
 
