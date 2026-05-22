@@ -117,6 +117,10 @@ export function openRegionCapture() {
       fullscreenable: false,
       focusable: true,
       show: false,
+      // macOS otherwise clamps the window frame to the work area (excluding the
+      // Dock and menu bar). This disables that constraining so the overlay can
+      // actually cover the Dock/menu bar region.
+      enableLargerThanScreen: true,
       webPreferences: {
         preload: path.join(__dirname, 'overlay-preload.js'),
         contextIsolation: true,
@@ -128,6 +132,10 @@ export function openRegionCapture() {
     // Set BEFORE showing so it appears on fullscreen spaces (macOS).
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     win.setAlwaysOnTop(true, 'screen-saver');
+
+    // Re-assert the full display bounds after raising the level, as a backstop
+    // in case the frame was clamped during creation (see enableLargerThanScreen).
+    win.setBounds({ x, y, width, height });
 
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getOverlayHTML(display.bounds))}`);
 

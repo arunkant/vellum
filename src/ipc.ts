@@ -25,6 +25,7 @@ import {
   openChatWindow,
   closeChatWindow,
   restoreWindowsHiddenForCapture,
+  notifyScreenshotsUpdated,
 } from './windows';
 
 export interface IPCHandlers {
@@ -205,6 +206,15 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   });
 
   ipcMain.handle('chat-list-saved-prompts', () => SAVED_PROMPTS);
+
+  ipcMain.handle('chat-delete-screenshot', (_e, filepath: string) => {
+    const safe = resolveScreenshotPath(filepath);
+    if (!safe) return false;
+    deleteScreenshot(safe);
+    notifyScreenshotsUpdated();
+    closeChatWindow();
+    return true;
+  });
 
   ipcMain.on('chat-window-close', () => closeChatWindow());
 
