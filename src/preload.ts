@@ -4,6 +4,7 @@ export interface ScreenshotEntry {
   name: string;
   path: string;
   time: number;
+  url: string | null;
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;

@@ -3,6 +3,7 @@ import type { SavedPrompt } from './ai/saved-prompts';
 
 export interface ChatWindowData {
   filepath: string;
+  url: string | null;
   history: ChatMessage[];
   tags: string[];
   savedPrompts: SavedPrompt[];
@@ -12,7 +13,7 @@ export interface ChatWindowData {
  * HTML for the floating screenshot workspace. Loaded as a data URL with `chat-preload.js`.
  */
 export function getChatHTML(data: ChatWindowData): string {
-  const { filepath, history, tags, savedPrompts } = data;
+  const { filepath, url, history, tags, savedPrompts } = data;
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -65,6 +66,29 @@ export function getChatHTML(data: ChatWindowData): string {
   }
   .titlebar-left { font-size: 11.5px; font-weight: 600; color: var(--text); }
   .titlebar-actions { -webkit-app-region: no-drag; display: flex; gap: 4px; }
+
+  .source-bar {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
+  }
+  .source-bar.show { display: flex; }
+  .source-bar .globe { flex-shrink: 0; font-size: 11px; opacity: 0.7; }
+  .source-bar a {
+    color: var(--accent);
+    font-size: 11.5px;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .source-bar a:hover { text-decoration: underline; }
 
   .btn-icon {
     background: none; border: none;
@@ -330,6 +354,11 @@ export function getChatHTML(data: ChatWindowData): string {
   </div>
 </div>
 
+<div class="source-bar" id="source-bar">
+  <span class="globe">🔗</span>
+  <a id="source-link" title=""></a>
+</div>
+
 <div class="stage" id="stage">
   <img src="vellum-file://${encodeURI(filepath)}" alt="Screenshot" />
   <div class="tag-rail" id="tag-rail"></div>
@@ -361,6 +390,7 @@ export function getChatHTML(data: ChatWindowData): string {
 <script>
   const api = window.chat;
   const filepath = ${JSON.stringify(filepath)};
+  const sourceURL = ${JSON.stringify(url)};
   const savedHistory = ${JSON.stringify(history)};
   const initialTags = ${JSON.stringify(tags)};
   const savedPrompts = ${JSON.stringify(savedPrompts)};
@@ -610,6 +640,18 @@ export function getChatHTML(data: ChatWindowData): string {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
   function hideLoading() { document.getElementById('loader')?.remove(); }
+
+  // ---- source URL ----
+  if (sourceURL) {
+    const bar = document.getElementById('source-bar');
+    const link = document.getElementById('source-link');
+    let display = sourceURL;
+    try { display = new URL(sourceURL).hostname || sourceURL; } catch (e) {}
+    link.textContent = display;
+    link.title = sourceURL;
+    link.addEventListener('click', () => api.openExternal(sourceURL));
+    bar.classList.add('show');
+  }
 
   // ---- wiring ----
   renderTags();

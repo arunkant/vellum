@@ -20,6 +20,7 @@ export interface ScreenshotRow {
   filename: string;
   path: string;
   createdAt: number;
+  url: string | null;
 }
 
 let _db: DatabaseSync | null = null;
@@ -36,7 +37,8 @@ function open(): DatabaseSync {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       filename TEXT NOT NULL UNIQUE,
       path TEXT NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      url TEXT
     );
 
     CREATE TABLE IF NOT EXISTS ai_results (
@@ -67,6 +69,13 @@ function open(): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS idx_tags_tag ON screenshot_tags(tag);
   `);
+
+  // Migration: add `url` to pre-existing screenshots tables.
+  const cols = _db.prepare(`PRAGMA table_info(screenshots)`).all() as unknown as { name: string }[];
+  if (!cols.some((c) => c.name === 'url')) {
+    _db.exec(`ALTER TABLE screenshots ADD COLUMN url TEXT`);
+  }
+
   return _db;
 }
 
@@ -74,15 +83,15 @@ function open(): DatabaseSync {
 export function initDB(): void { open(); }
 
 export const screenshotsTbl = {
-  insert(filename: string, fullPath: string, createdAt: number): number {
+  insert(filename: string, fullPath: string, createdAt: number, url: string | null = null): number {
     const r = open()
-      .prepare('INSERT INTO screenshots (filename, path, created_at) VALUES (?, ?, ?)')
-      .run(filename, fullPath, createdAt);
+      .prepare('INSERT INTO screenshots (filename, path, created_at, url) VALUES (?, ?, ?, ?)')
+      .run(filename, fullPath, createdAt, url);
     return Number(r.lastInsertRowid);
   },
   findByFilename(filename: string): ScreenshotRow | null {
     const row = open()
-      .prepare('SELECT id, filename, path, created_at as createdAt FROM screenshots WHERE filename = ?')
+      .prepare('SELECT id, filename, path, created_at as createdAt, url FROM screenshots WHERE filename = ?')
       .get(filename) as unknown as ScreenshotRow | undefined;
     return row ?? null;
   },
@@ -95,6 +104,7 @@ export interface ScreenshotListRow {
   name: string;
   path: string;
   time: number;
+  url: string | null;
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
@@ -172,6 +182,7 @@ export function listScreenshotEntries(): ScreenshotListRow[] {
       s.filename as name,
       s.path as path,
       s.created_at as time,
+      s.url as url,
       a.extracted_text as aiText,
       a.description as aiDescription,
       a.model as aiModel,

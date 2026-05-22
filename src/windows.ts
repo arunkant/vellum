@@ -3,7 +3,8 @@ import path from 'node:path';
 import { getOverlayHTML } from './overlay-html';
 import { getChatHTML } from './chat-html';
 import { SAVED_PROMPTS } from './ai/saved-prompts';
-import { chatMessagesTbl, tagsTbl } from './db';
+import { chatMessagesTbl, screenshotsTbl, tagsTbl } from './db';
+import { getActiveBrowserURL } from './capture';
 import { listScreenshots } from './screenshots';
 import {
   checkForUpdates,
@@ -19,6 +20,17 @@ let chatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let hiddenForCapture = { main: false, chat: false };
+
+// URL of the browser that was frontmost when a region capture began. Captured
+// before the overlay steals focus; consumed by the capture handler afterward.
+let pendingRegionCaptureURL: string | null = null;
+
+/** Return and clear the URL captured when the region overlay opened. */
+export function takePendingRegionCaptureURL(): string | null {
+  const url = pendingRegionCaptureURL;
+  pendingRegionCaptureURL = null;
+  return url;
+}
 
 export function setQuitting(value: boolean) { isQuitting = value; }
 export function getMainWindow() { return mainWindow; }
@@ -83,11 +95,15 @@ export function createMainWindow() {
   });
 }
 
-export function openRegionCapture() {
+export async function openRegionCapture() {
   if (overlayWindows.length > 0) {
     overlayWindows[0].focus();
     return;
   }
+
+  // Grab the active browser URL *before* the overlay steals focus — once we
+  // focus the overlay, Vellum becomes the frontmost app and the URL is lost.
+  pendingRegionCaptureURL = await getActiveBrowserURL();
 
   // Hide our own windows first. On macOS, focusing the overlay activates the
   // Vellum app, which raises any visible Vellum window above other apps — and
@@ -208,6 +224,7 @@ export function openChatWindow(filepath: string) {
   const filename = path.basename(filepath);
   const html = getChatHTML({
     filepath,
+    url: screenshotsTbl.findByFilename(filename)?.url ?? null,
     history: chatMessagesTbl.getByFilename(filename),
     tags: tagsTbl.listByFilename(filename),
     savedPrompts: SAVED_PROMPTS,

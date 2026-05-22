@@ -19,6 +19,12 @@ const config: ForgeConfig = {
     // `vendor/llama` is populated by `npm run build:llama` and contains the
     // platform-specific `llama-server` binary used for local AI inference.
     extraResource: ['./assets', './vendor/llama'],
+    // Required for macOS to allow sending Apple Events to browsers — used to
+    // read the active tab's URL when capturing a screenshot.
+    extendInfo: {
+      NSAppleEventsUsageDescription:
+        "Vellum reads the active browser tab's URL to attach it to screenshots you capture.",
+    },
   },
   rebuildConfig: {},
   makers: [

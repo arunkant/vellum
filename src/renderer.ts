@@ -15,6 +15,7 @@ type ScreenshotEntry = {
   name: string;
   path: string;
   time: number;
+  url: string | null;
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
@@ -37,6 +38,7 @@ function filterScreenshots(query: string): ScreenshotEntry[] {
   const q = query.toLowerCase().trim();
   return allScreenshots.filter((s) => {
     if (s.name.toLowerCase().includes(q)) return true;
+    if (s.url && s.url.toLowerCase().includes(q)) return true;
     if (s.aiText && s.aiText.toLowerCase().includes(q)) return true;
     if (s.aiDescription && s.aiDescription.toLowerCase().includes(q)) return true;
     if (s.chatPreview && s.chatPreview.toLowerCase().includes(q)) return true;
@@ -114,6 +116,14 @@ function renderLocalLlmStatus(status: LocalLlmStatus) {
 
   stopServerBtn.style.display =
     status.state === 'ready' || status.state === 'starting' ? 'inline-block' : 'none';
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname || url;
+  } catch {
+    return url;
+  }
 }
 
 function formatTime(ms: number): string {
@@ -242,6 +252,15 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
   }
   body.appendChild(time);
 
+  if (shot.url) {
+    const source = document.createElement('a');
+    source.className = 'card-source';
+    source.textContent = hostnameOf(shot.url);
+    source.title = shot.url;
+    source.dataset.action = 'open-url';
+    body.appendChild(source);
+  }
+
   const aiContent = shot.aiDescription || shot.aiText || '';
   if (aiContent) {
     const ai = document.createElement('div');
@@ -284,6 +303,8 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
         showToast('Screenshot deleted');
       } else if (action === 'open-chat') {
         window.vellum.openChatWindow(shot.path);
+      } else if (action === 'open-url' && shot.url) {
+        window.vellum.openExternal(shot.url);
       }
       return;
     }
@@ -316,6 +337,8 @@ type WorkspaceAction = {
 const detailBackdrop = document.getElementById('detail-backdrop')!;
 const detailPanel = document.getElementById('detail-panel')!;
 const detailTitleEl = document.getElementById('detail-title')!;
+const detailSourceBar = document.getElementById('detail-source-bar')!;
+const detailSourceLink = document.getElementById('detail-source-link') as HTMLAnchorElement;
 const detailImageEl = document.getElementById('detail-image') as HTMLImageElement;
 const detailTagRail = document.getElementById('detail-tag-rail')!;
 const detailActionBar = document.getElementById('detail-action-bar')!;
@@ -562,6 +585,13 @@ async function runSavedPrompt(promptId: string) {
 async function openDetail(shot: ScreenshotEntry) {
   currentDetail = shot;
   detailTitleEl.textContent = shot.name;
+  if (shot.url) {
+    detailSourceLink.textContent = hostnameOf(shot.url);
+    detailSourceLink.title = shot.url;
+    detailSourceBar.classList.add('show');
+  } else {
+    detailSourceBar.classList.remove('show');
+  }
   detailImageEl.src = `vellum-file://${encodeURI(shot.path)}`;
   detailImageEl.alt = shot.name;
 
@@ -618,6 +648,10 @@ detailChatClose.addEventListener('click', closeChatHistory);
 detailOpenBtn.addEventListener('click', () => {
   if (!currentDetail) return;
   window.vellum.openScreenshot(currentDetail.path);
+});
+
+detailSourceLink.addEventListener('click', () => {
+  if (currentDetail?.url) window.vellum.openExternal(currentDetail.url);
 });
 
 detailImageEl.addEventListener('click', () => {

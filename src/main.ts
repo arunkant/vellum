@@ -2,7 +2,7 @@ import { app, BrowserWindow, globalShortcut, net, protocol } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { analyzeScreenshot, onLocalLlmStatusChange, stopLocalServer } from './ai';
-import { captureFullScreen } from './capture';
+import { captureFullScreen, getActiveBrowserURL } from './capture';
 import { initDB } from './db';
 import { resolveScreenshotPath } from './screenshots';
 import { setupIPC } from './ipc';
@@ -55,7 +55,8 @@ async function onScreenshotCaptured(filepath: string) {
 }
 
 async function fullScreenAndProcess() {
-  const filepath = await captureFullScreen();
+  const url = await getActiveBrowserURL();
+  const filepath = await captureFullScreen(url);
   if (filepath) onScreenshotCaptured(filepath);
 }
 

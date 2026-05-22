@@ -17,6 +17,8 @@ const api = {
     ipcRenderer.invoke('chat-copy-shadow', filepath),
   deleteScreenshot: (filepath: string): Promise<boolean> =>
     ipcRenderer.invoke('chat-delete-screenshot', filepath),
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
   close: () => ipcRenderer.send('chat-window-close'),
 };
 

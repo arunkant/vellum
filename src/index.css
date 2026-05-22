@@ -275,6 +275,19 @@ main {
   margin-left: 4px;
 }
 
+.card-source {
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.card-source:hover { text-decoration: underline; }
+
 /* AI description in card — clamped preview, no inline expand */
 .card-ai {
   font-size: 11.5px;
@@ -468,6 +481,31 @@ main {
   border-radius: 5px;
   line-height: 1;
 }
+
+.ws-source-bar {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ws-source-bar.show { display: flex; }
+
+.ws-source-globe { flex-shrink: 0; font-size: 11px; opacity: 0.7; }
+
+.ws-source-link {
+  color: var(--accent);
+  font-size: 11.5px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.ws-source-link:hover { text-decoration: underline; }
 
 .ws-stage {
   position: relative;
