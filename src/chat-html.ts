@@ -77,6 +77,12 @@ export function getChatHTML(data: ChatWindowData): string {
     transition: background 0.12s ease, color 0.12s ease;
   }
   .btn-icon:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+  .btn-icon.danger:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+  .btn-icon.confirm {
+    background: #ef4444; color: white;
+    font-size: 11px; font-weight: 600;
+  }
+  .btn-icon.confirm:hover { background: #dc2626; color: white; }
 
   .stage {
     position: relative;
@@ -319,6 +325,7 @@ export function getChatHTML(data: ChatWindowData): string {
   <div class="titlebar-left">📐 Vellum workspace</div>
   <div class="titlebar-actions">
     <button class="btn-icon" id="chat-toggle" title="Toggle chat history">💬</button>
+    <button class="btn-icon danger" id="delete-btn" title="Delete screenshot">🗑</button>
     <button class="btn-icon" id="close-btn" title="Close (Esc)">✕</button>
   </div>
 </div>
@@ -398,6 +405,7 @@ export function getChatHTML(data: ChatWindowData): string {
   const inputEl = document.getElementById('omni-input');
   const sendBtn = document.getElementById('send-btn');
   const closeBtn = document.getElementById('close-btn');
+  const deleteBtn = document.getElementById('delete-btn');
 
   let isWaiting = false;
   let currentTags = initialTags.slice();
@@ -625,6 +633,29 @@ export function getChatHTML(data: ChatWindowData): string {
   chatClose.addEventListener('click', closeChat);
 
   closeBtn.addEventListener('click', () => api.close());
+
+  // Two-click confirm so a stray click doesn't destroy the screenshot.
+  let confirmingDelete = false;
+  let deleteResetTimer = null;
+  function resetDelete() {
+    confirmingDelete = false;
+    deleteBtn.classList.remove('confirm');
+    deleteBtn.textContent = '🗑';
+    deleteBtn.title = 'Delete screenshot';
+    if (deleteResetTimer) { clearTimeout(deleteResetTimer); deleteResetTimer = null; }
+  }
+  deleteBtn.addEventListener('click', () => {
+    if (!confirmingDelete) {
+      confirmingDelete = true;
+      deleteBtn.classList.add('confirm');
+      deleteBtn.textContent = 'Delete?';
+      deleteBtn.title = 'Click again to confirm';
+      deleteResetTimer = setTimeout(resetDelete, 3000);
+      return;
+    }
+    resetDelete();
+    api.deleteScreenshot(filepath);
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (chatPanel.classList.contains('show')) { closeChat(); return; }

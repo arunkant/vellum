@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { getConfig } from '../config';
 import { aiResultsTbl, screenshotsTbl, type AIResult } from '../db';
@@ -25,6 +26,10 @@ export async function analyzeScreenshot(filepath: string): Promise<AIResult | nu
 
   const cached = aiResultsTbl.getByFilename(filename);
   if (cached) return cached;
+
+  // The screenshot may have been deleted before this background analysis ran
+  // (e.g. the user hit delete in the chat window). Skip quietly.
+  if (!fs.existsSync(filepath)) return null;
 
   const provider = activeProvider();
   if (!provider.isConfigured()) return null;
