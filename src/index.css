@@ -275,7 +275,7 @@ main {
   margin-left: 4px;
 }
 
-/* AI description in card — clamped preview, no inline expand */
+/* AI description in card — clamped preview, click to expand inline */
 .card-ai {
   font-size: 11.5px;
   color: var(--text-primary);
@@ -285,6 +285,19 @@ main {
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.12s;
+}
+
+.card-ai:hover { color: var(--accent); }
+
+.card-ai.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 /* Floating action row (hover-revealed) */
@@ -666,7 +679,8 @@ main {
 .ws-send:hover { background: var(--accent-hover, #2563eb); }
 .ws-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.ws-chat-panel {
+.ws-chat-panel,
+.ws-ai-panel {
   position: absolute;
   inset: 0;
   background: var(--bg-secondary);
@@ -676,7 +690,53 @@ main {
   transition: transform 0.18s ease;
   z-index: 5;
 }
-.ws-chat-panel.show { transform: translateY(0); }
+.ws-chat-panel.show,
+.ws-ai-panel.show { transform: translateY(0); }
+
+.ws-ai-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ws-ai-body .ws-ai-section + .ws-ai-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.ws-ai-body .ws-ai-section-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.ws-ai-body.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.ws-ai-model {
+  margin-left: 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ws-ai-model:empty { display: none; }
 
 .ws-chat-head {
   display: flex;

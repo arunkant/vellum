@@ -40,6 +40,7 @@
         <span class="ws-title" id="detail-title">Screenshot</span>
         <div class="ws-titlebar-actions">
           <button id="detail-open" class="btn-icon ws-icon-btn" title="Open in viewer">↗</button>
+          <button id="detail-ai-toggle" class="btn-icon ws-icon-btn" title="Toggle AI analysis">📝</button>
           <button id="detail-chat-toggle" class="btn-icon ws-icon-btn" title="Toggle chat history">💬</button>
           <button id="detail-delete" class="btn-icon ws-icon-btn" title="Delete">🗑</button>
           <button id="detail-close" class="btn-icon ws-icon-btn" title="Close" aria-label="Close">✕</button>
@@ -49,6 +50,14 @@
       <div class="ws-stage" id="detail-stage">
         <img id="detail-image" class="ws-image" alt="" />
         <div class="ws-tag-rail" id="detail-tag-rail"></div>
+
+        <div class="ws-ai-panel" id="detail-ai-panel">
+          <div class="ws-chat-head">
+            <span>AI analysis<span class="ws-ai-model" id="detail-ai-model"></span></span>
+            <button class="btn-icon ws-icon-btn" id="detail-ai-close">▾</button>
+          </div>
+          <div class="ws-ai-body" id="detail-ai-body"></div>
+        </div>
 
         <div class="ws-chat-panel" id="detail-chat-panel">
           <div class="ws-chat-head">

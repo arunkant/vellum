@@ -247,6 +247,12 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
     const ai = document.createElement('div');
     ai.className = 'card-ai';
     ai.textContent = aiContent;
+    ai.title = 'Click to expand';
+    ai.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ai.classList.toggle('expanded');
+      ai.title = ai.classList.contains('expanded') ? 'Click to collapse' : 'Click to expand';
+    });
     body.appendChild(ai);
   }
   card.appendChild(body);
@@ -323,11 +329,16 @@ const detailReplyStrip = document.getElementById('detail-reply-strip')!;
 const detailReplyText = document.getElementById('detail-reply-text')!;
 const detailChatPanel = document.getElementById('detail-chat-panel')!;
 const detailMessages = document.getElementById('detail-messages')!;
+const detailAiPanel = document.getElementById('detail-ai-panel')!;
+const detailAiBody = document.getElementById('detail-ai-body')!;
+const detailAiModel = document.getElementById('detail-ai-model')!;
 const detailOmniInput = document.getElementById('detail-omni-input') as HTMLInputElement;
 const detailSendBtn = document.getElementById('detail-send-btn') as HTMLButtonElement;
 const detailCloseBtn = document.getElementById('detail-close')!;
 const detailChatToggle = document.getElementById('detail-chat-toggle')!;
 const detailChatClose = document.getElementById('detail-chat-close')!;
+const detailAiToggle = document.getElementById('detail-ai-toggle')!;
+const detailAiClose = document.getElementById('detail-ai-close')!;
 const detailOpenBtn = document.getElementById('detail-open')!;
 const detailDeleteBtn = document.getElementById('detail-delete')!;
 
@@ -444,11 +455,67 @@ function hideReply() {
 }
 
 function openChatHistory() {
+  detailAiPanel.classList.remove('show');
   detailChatPanel.classList.add('show');
   detailMessages.scrollTop = detailMessages.scrollHeight;
 }
 function closeChatHistory() {
   detailChatPanel.classList.remove('show');
+}
+
+function openAiPanel() {
+  detailChatPanel.classList.remove('show');
+  detailAiPanel.classList.add('show');
+  detailAiBody.scrollTop = 0;
+}
+function closeAiPanel() {
+  detailAiPanel.classList.remove('show');
+}
+
+function renderAiAnalysis(shot: ScreenshotEntry) {
+  detailAiBody.innerHTML = '';
+  detailAiBody.classList.remove('empty');
+
+  if (shot.aiModel) {
+    detailAiModel.textContent = shot.aiModel.split('/').pop() || shot.aiModel;
+  } else {
+    detailAiModel.textContent = '';
+  }
+
+  const desc = shot.aiDescription?.trim();
+  const text = shot.aiText?.trim();
+
+  if (!desc && !text) {
+    detailAiBody.classList.add('empty');
+    detailAiBody.textContent = 'No AI analysis yet.';
+    return;
+  }
+
+  if (desc) {
+    const section = document.createElement('div');
+    section.className = 'ws-ai-section';
+    const label = document.createElement('span');
+    label.className = 'ws-ai-section-label';
+    label.textContent = 'Description';
+    section.appendChild(label);
+    const body = document.createElement('div');
+    body.textContent = desc;
+    section.appendChild(body);
+    detailAiBody.appendChild(section);
+  }
+
+  if (text && text !== desc) {
+    const section = document.createElement('div');
+    section.className = 'ws-ai-section';
+    const label = document.createElement('span');
+    label.className = 'ws-ai-section-label';
+    label.textContent = 'Extracted text';
+    section.appendChild(label);
+    const body = document.createElement('div');
+    body.textContent = text;
+    section.appendChild(body);
+    detailAiBody.appendChild(section);
+  }
 }
 
 function showLoading() {
@@ -571,8 +638,10 @@ async function openDetail(shot: ScreenshotEntry) {
 
   hideReply();
   closeChatHistory();
+  closeAiPanel();
   detailMessages.innerHTML = '';
   detailTagRail.innerHTML = '';
+  renderAiAnalysis(shot);
 
   if (savedPrompts.length === 0) {
     savedPrompts = await window.vellum.workspace.listSavedPrompts();
@@ -605,6 +674,7 @@ function closeDetail() {
   detailPanel.classList.remove('open');
   detailPanel.setAttribute('aria-hidden', 'true');
   closeChatHistory();
+  closeAiPanel();
   hideReply();
 }
 
@@ -614,6 +684,10 @@ detailChatToggle.addEventListener('click', () => {
   detailChatPanel.classList.contains('show') ? closeChatHistory() : openChatHistory();
 });
 detailChatClose.addEventListener('click', closeChatHistory);
+detailAiToggle.addEventListener('click', () => {
+  detailAiPanel.classList.contains('show') ? closeAiPanel() : openAiPanel();
+});
+detailAiClose.addEventListener('click', closeAiPanel);
 
 detailOpenBtn.addEventListener('click', () => {
   if (!currentDetail) return;
@@ -646,6 +720,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (detailChatPanel.classList.contains('show')) {
       closeChatHistory();
+    } else if (detailAiPanel.classList.contains('show')) {
+      closeAiPanel();
     } else {
       closeDetail();
     }
