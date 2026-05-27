@@ -19,6 +19,14 @@ const config: ForgeConfig = {
     // `vendor/llama` is populated by `npm run build:llama` and contains the
     // platform-specific `llama-server` binary used for local AI inference.
     extraResource: ['./assets', './vendor/llama'],
+    // Required on macOS Catalina+ so the system shows the Automation
+    // permission prompt when Vellum asks the frontmost browser for its URL
+    // (see src/capture/browser-url.ts). Without this key the Apple event is
+    // silently denied with -1743 and no prompt ever appears.
+    extendInfo: {
+      NSAppleEventsUsageDescription:
+        'Vellum reads the URL of the frontmost browser tab when you capture a screenshot so it can be saved alongside the image.',
+    },
   },
   rebuildConfig: {},
   makers: [

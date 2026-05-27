@@ -5,6 +5,7 @@ import { getChatHTML } from './chat-html';
 import { SAVED_PROMPTS } from './ai/saved-prompts';
 import { chatMessagesTbl, tagsTbl } from './db';
 import { listScreenshots } from './screenshots';
+import { getFrontmostBrowserURL } from './capture';
 import {
   checkForUpdates,
   installStagedUpdate,
@@ -19,6 +20,18 @@ let chatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let hiddenForCapture = { main: false, chat: false };
+let pendingCaptureURL: Promise<string | null> | null = null;
+
+/**
+ * Returns the URL of the frontmost browser captured *before* the region
+ * overlay was shown, then clears it. Returns null if no capture is in flight
+ * or the lookup failed.
+ */
+export function consumePendingCaptureURL(): Promise<string | null> {
+  const p = pendingCaptureURL;
+  pendingCaptureURL = null;
+  return p ?? Promise.resolve(null);
+}
 
 export function setQuitting(value: boolean) { isQuitting = value; }
 export function getMainWindow() { return mainWindow; }
@@ -88,6 +101,10 @@ export function openRegionCapture() {
     overlayWindows[0].focus();
     return;
   }
+
+  // Kick off the URL fetch BEFORE the overlay steals focus from the browser.
+  // The osascript call is async; consumed by ipc 'overlay:selected' later.
+  pendingCaptureURL = getFrontmostBrowserURL();
 
   // Hide our own windows first. On macOS, focusing the overlay activates the
   // Vellum app, which raises any visible Vellum window above other apps — and

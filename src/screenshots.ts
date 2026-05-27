@@ -13,6 +13,7 @@ export interface ScreenshotEntry {
   name: string;
   path: string;
   time: number;
+  url: string | null;
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
@@ -41,6 +42,7 @@ export function listScreenshots(): ScreenshotEntry[] {
       name: r.name,
       path: r.path,
       time: r.time,
+      url: r.url,
       aiText: r.aiText,
       aiDescription: r.aiDescription,
       aiModel: r.aiModel,

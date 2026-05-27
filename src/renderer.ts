@@ -15,6 +15,7 @@ type ScreenshotEntry = {
   name: string;
   path: string;
   time: number;
+  url: string | null;
   aiText: string | null;
   aiDescription: string | null;
   aiModel: string | null;
@@ -37,6 +38,7 @@ function filterScreenshots(query: string): ScreenshotEntry[] {
   const q = query.toLowerCase().trim();
   return allScreenshots.filter((s) => {
     if (s.name.toLowerCase().includes(q)) return true;
+    if (s.url && s.url.toLowerCase().includes(q)) return true;
     if (s.aiText && s.aiText.toLowerCase().includes(q)) return true;
     if (s.aiDescription && s.aiDescription.toLowerCase().includes(q)) return true;
     if (s.chatPreview && s.chatPreview.toLowerCase().includes(q)) return true;
@@ -135,6 +137,16 @@ function formatTime(ms: number): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatDisplayURL(raw: string): string {
+  try {
+    const u = new URL(raw);
+    const tail = (u.pathname + u.search).replace(/\/$/, '');
+    return tail ? `${u.host}${tail}` : u.host;
+  } catch {
+    return raw;
+  }
 }
 
 // --- Toast ---
@@ -241,6 +253,20 @@ function buildCard(shot: ScreenshotEntry): HTMLElement {
     time.appendChild(dot);
   }
   body.appendChild(time);
+
+  if (shot.url) {
+    const urlEl = document.createElement('a');
+    urlEl.className = 'card-url';
+    urlEl.href = shot.url;
+    urlEl.textContent = formatDisplayURL(shot.url);
+    urlEl.title = shot.url;
+    urlEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.vellum.openExternal(shot.url as string);
+    });
+    body.appendChild(urlEl);
+  }
 
   const aiContent = shot.aiDescription || shot.aiText || '';
   if (aiContent) {

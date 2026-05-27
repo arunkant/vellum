@@ -17,7 +17,7 @@ import {
   deleteScreenshot,
   screenshotsDir,
 } from './screenshots';
-import { captureRegion, captureFullScreen, Region } from './capture';
+import { captureRegion, captureFullScreen, getFrontmostBrowserURL, Region } from './capture';
 import { decorateScreenshot } from './decorate';
 import {
   openRegionCapture,
@@ -26,6 +26,7 @@ import {
   closeChatWindow,
   restoreWindowsHiddenForCapture,
   notifyScreenshotsUpdated,
+  consumePendingCaptureURL,
 } from './windows';
 
 export interface IPCHandlers {
@@ -53,7 +54,8 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   });
 
   ipcMain.handle('capture-fullscreen', async () => {
-    const filepath = await captureFullScreen();
+    const url = await getFrontmostBrowserURL();
+    const filepath = await captureFullScreen(url);
     if (filepath) onScreenshotCaptured(filepath);
     return listScreenshots();
   });
@@ -91,9 +93,11 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
   // Overlay → main
   ipcMain.on('overlay:selected', async (_e, region: Region) => {
     closeOverlay();
+    // URL was captured before the overlay stole browser focus.
+    const url = await consumePendingCaptureURL();
     // Brief delay so the overlay isn't captured in the screenshot.
     await new Promise((r) => setTimeout(r, 200));
-    const filepath = await captureRegion(region);
+    const filepath = await captureRegion(region, url);
     // Restore *after* capture so our own UI isn't pulled into the screenshot.
     // On success, onScreenshotCaptured opens a new chat window which makes
     // the restored chat (if any) get destroyed and recreated — that's fine.
@@ -103,6 +107,7 @@ export function setupIPC({ onScreenshotCaptured }: IPCHandlers) {
 
   ipcMain.on('overlay:cancelled', () => {
     closeOverlay();
+    void consumePendingCaptureURL();
     restoreWindowsHiddenForCapture();
   });
 
